@@ -1,6 +1,10 @@
 /*
  * dTemplate.xs
- * rewritten parse method
+ * parse method
+ *
+ * $Id: dTemplate.xs 52 2003-07-31 22:01:00Z dlux $
+ * 
+ * $URL: http://svn.dlux.hu:81/public/dTemplate/trunk/dTemplate.xs $
  *
  */
 
@@ -15,9 +19,10 @@
 
 /* method field constants */
 
-#define FILENAME 0
-#define TEXT     1
-#define COMPILED 2
+#define FILENAME  0
+#define TEXT      1
+#define COMPILED  2
+#define PARSEHASH 3
 
 #define MALLOC_MAGIC_COOKIE 494
 
@@ -29,7 +34,7 @@ typedef struct _StringChunk {
     char *data;
 } StringChunk;
 
-StringChunk* new_StringChunk (I32 size) {
+static StringChunk* new_StringChunk (I32 size) {
     StringChunk *self;
     Newz(MALLOC_MAGIC_COOKIE, self, 1, StringChunk);
     New(MALLOC_MAGIC_COOKIE, self->data, size+1, char);
@@ -38,7 +43,7 @@ StringChunk* new_StringChunk (I32 size) {
     return self;
 }
 
-void append_StringChunk (StringChunk* self, char *data, I32 size) {
+static void append_StringChunk (StringChunk* self, char *data, I32 size) {
     if (self->allocated <= self->endpos + size) {
         int new_alloc = 2 * (self->endpos + size);
         Renew(self->data, new_alloc, char);
@@ -49,7 +54,7 @@ void append_StringChunk (StringChunk* self, char *data, I32 size) {
     * (self->data + self->endpos) = 0;
 }
 
-void free_StringChunk (StringChunk* self) {
+static void free_StringChunk (StringChunk* self) {
     Safefree(self->data);
     Safefree(self);
 }
@@ -73,6 +78,8 @@ parse(...)
     HV *global_parse_hash   = perl_get_hv("dTemplate::parse", TRUE);
     HV *encoder_hash        = perl_get_hv("dTemplate::ENCODERS", TRUE);
     SV *notassigned_mode    = perl_get_sv("dTemplate::NOTASSIGNED_MODE", FALSE);
+    SV **local_parse_href;
+    HV *local_parse_hash;
     StringChunk *result;
     
     if (!SvROK(self)) XSRETURN_UNDEF; 
@@ -92,6 +99,13 @@ parse(...)
         FREETMPS;
         LEAVE;
     }
+
+    // Local parse hash
+    local_parse_href = av_fetch(array, PARSEHASH, FALSE);
+    if (local_parse_href && *local_parse_href != &PL_sv_undef)
+        local_parse_hash = (HV*) SvRV(*local_parse_href);
+    else
+        local_parse_hash = NULL;
 
     compiledSV = av_fetch(array, COMPILED, 0);
     if (!compiledSV || *compiledSV == &PL_sv_undef) XSRETURN_UNDEF;
@@ -179,8 +193,14 @@ parse(...)
         for (vari = 0; vari<number_of_variables; vari++) {
             char *nextspace = index(walktable,TABLE_SEP_CHAR);
             if (!variable[vari]) {
-                val = hv_fetch(global_parse_hash, walktable, 
-                    nextspace - walktable, 0);
+                val = 0;
+
+                if (local_parse_hash)
+                    val = hv_fetch(local_parse_hash, walktable, nextspace - walktable, 0);
+
+                if (!val)
+                    val = hv_fetch(global_parse_hash, walktable, nextspace - walktable, 0);
+
                 if (val) { /* got one parameter */
                     variable[vari] = *val;
                     DO_IF_GET_MAGIC(variable[vari]);
@@ -250,8 +270,19 @@ parse(...)
         }
 
         if (!parsevar) { /* variable is not assigned */
+            SV **empty_val = hv_fetch(local_parse_hash, "", 0, 0);
             assigned = 0;
+            if (empty_val) {
+                if (notassigned_mode && SvTRUE(notassigned_mode))
+                    assigned = 1;
+                parsevar = *empty_val;
+                DO_IF_GET_MAGIC(parsevar);
+            }
+        }
+
+        if (!parsevar) { /* variable is still not assigned */
             SV **empty_val = hv_fetch(global_parse_hash, "", 0, 0);
+            assigned = 0;
             if (empty_val) {
                 if (notassigned_mode && SvTRUE(notassigned_mode))
                     assigned = 1;
@@ -287,24 +318,23 @@ parse(...)
                     XPUSHs(self);
                     PUTBACK;
                     
+                    retvals = perl_call_sv( parsevar, G_SCALAR );
+
+                    SPAGAIN;
+
+                    if (retvals == 1) {
+                        parsevar = SvREFCNT_inc(POPs);
+                        DO_IF_GET_MAGIC(parsevar);
+                    }
+
+                    PUTBACK;
+                    FREETMPS;
+                    LEAVE;
+
+                    if (retvals == 1)
+                        sv_2mortal(parsevar);
+
                 }
-
-
-                retvals = perl_call_sv( parsevar, G_SCALAR );
-
-                SPAGAIN;
-
-                if (retvals == 1) {
-                    parsevar = SvREFCNT_inc(POPs);
-                    DO_IF_GET_MAGIC(parsevar);
-                }
-
-                PUTBACK;
-                FREETMPS;
-                LEAVE;
-
-                if (retvals == 1)
-                    sv_2mortal(parsevar);
             }
         }
 
@@ -333,6 +363,7 @@ parse(...)
                 PUSHMARK(SP);
                 XPUSHs(parsevar);
 		        XPUSHs(sv_2mortal(newSVpvn(encoder_param, encoder_param_len)));
+                XPUSHs(self);
                 PUTBACK;
 
                 retvals = perl_call_sv(*encoder, G_SCALAR);

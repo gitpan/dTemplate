@@ -1,5 +1,10 @@
 Revision history for Perl extension dTemplate.
 
+2.4   Thu Aug 14 22:52:56 CEST 2003
+	- Object-local parse-hash ($obj->parsehash) introduced
+	- Encoders will get the template object reference when called
+	- LAST_FIELD constant added to help subclassing dTemplate
+	- Documentation and test-case updates for the new features
 2.3   Sun Jul 13 23:05:36 CEST 2003
 	- Added a new configuration variable $NOTASSIGNED, which determines
 	  wether or not to call the encoders of parse{''} output.

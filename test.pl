@@ -1,6 +1,6 @@
 use Test;
 BEGIN {
-  plan tests => 18;
+  plan tests => 24;
 }
 
 use dTemplate;
@@ -27,7 +27,7 @@ my $test_compiled =
   # template end
   "\0";
 
-ok $t->[dTemplate::Template::compiled], $test_compiled;
+ok $t->[dTemplate::Template::COMPILED], $test_compiled;
 
 #open FILE,">test.out";
 #print FILE $t->[dTemplate::Template::compiled];
@@ -207,3 +207,74 @@ $dTemplate::NOTASSIGNED_MODE = 1;
 $a = $t->parse( X=>1, X5=> 2);
 
 ok ($a, "TEST5 OK");
+
+$dTemplate::NOTASSIGNED_MODE = 0;
+
+# Local parsehash test (1)
+
+my $t = new dTemplate(text => 'VARPRE $VARIABLE*uc$ VARPOST');
+
+$dTemplate::parse{VARIABLE} = "global parsing";
+$t->parsehash->{VARIABLE} = "local parsing";
+
+$a = $t->parse();
+
+ok ($a, "VARPRE LOCAL PARSING VARPOST");
+
+# Local parsehash test (2)
+
+# $t is from the previous test
+
+$dTemplate::parse{VARIABLE} = "global parsing";
+delete $t->parsehash->{VARIABLE};
+
+$a = $t->parse();
+
+ok ($a, "VARPRE GLOBAL PARSING VARPOST");
+
+# Local parsehash test (3)
+
+# $t is from the previous test
+
+$dTemplate::parse{VARIABLE} = "global parsing";
+$t->parsehash->{VARIABLE} = undef;
+
+$a = $t->parse();
+
+ok ($a, "VARPRE  VARPOST");
+
+# Local parsehash test (4)
+
+# $t is from the previous test
+
+$dTemplate::parse{VARIABLE} = "global parsing";
+$t->parsehash->{VARIABLE} = sub { "local sub parsing" };
+$t->parsehash->{VAR2} = "glagla";
+$t->parsehash->{VAR4} = "glagla";
+$t->parsehash->{VAR7} = "glagla";
+
+$a = $t->parse();
+
+ok ($a, "VARPRE LOCAL SUB PARSING VARPOST");
+
+# Local parsehash "" test (1)
+
+my $t = new dTemplate(text => 'VARPRE $VARIABLE*uc$ VARPOST');
+
+delete $dTemplate::parse{VARIABLE};
+$t->parsehash = { 
+    "" => sub { "local fallback parsing" },
+    VAR2 => "glaglagla",
+    VAR3 => "glaglagla",
+    VAR7 => "glaglagla",
+};
+
+{
+    local $dTemplate::NOTASSIGNED_MODE = 1;
+    $a = $t->parse();
+}
+
+
+ok ($a, "VARPRE LOCAL FALLBACK PARSING VARPOST");
+
+

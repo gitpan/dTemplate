@@ -1,6 +1,11 @@
 =head1 NAME
 
-dTemplate - A simple yet powerful template handling logic with advanced features.
+dTemplate - A simple yet powerful template handling logic with advanced
+features.
+
+    $Id: dTemplate.pod 53 2003-08-14 21:14:48Z dlux $
+
+    $URL: http://svn.dlux.hu:81/public/dTemplate/trunk/dTemplate.pod $
 
 =head1 SYNOPSIS
 
@@ -13,8 +18,8 @@ dTemplate - A simple yet powerful template handling logic with advanced features
     $mail = $mail_template->parse(
         FROM    => {
             first_name => "Balazs",
-            last_name => "Szabo",
-            email => "dlux@dlux.hu"
+            last_name  => "Szabo",
+            email      => "dlux@dlux.hu"
         },
         TO      => "foo@bar.com",
         SUBJECT => $subject,
@@ -231,10 +236,13 @@ The variable substitution is done in following steps:
 
     - Look for the data to substitute
         - Look for the data among the parameters of the parse method.
+        - Look for the data among the parameters of the template
+          object's parse hash ($obj->parsehash->{$varname})
         - Look for the data among the keys of %dTemplate::parse hash
     - Process "path" information in the placeholder
-    - If we have not found the variable, then we use the value of the
-      $dTemplate::parse{""} variable.
+    - If we have not found the variable, then we use the value of the ""
+      key of the object's parsehash ($obj->parsehash->{""}) if exists, or
+      the $dTemplate::parse{""} if exists.
     - If the value is a code reference, then we call it to return the
       value.
     - Use the encoders on the returned value
@@ -250,6 +258,7 @@ then, it is not used at this step, so only the information before the first
 The parse method looks for the substitutable variable name in three places:
 
     - Among the parameters of the parse method
+    - Among the keys of local parsehash ($object->parsehash)
     - Among the keys of dTemplate::parse hash
 
 =head2 Looking for the data in the parameters of the parse method
@@ -278,12 +287,26 @@ This method call defines "name", "name2", "name3", "name4" and "name5"
 variable names, so they will be substituted in the $template object with
 $value, $value2, $value3, $value4 and $value5.
 
-=head2 Looking for the data in the dTemplate::parse hash
+=head2 Looking for the data in the local parsehash
 
 If we encounter a variable reference in the template placeholders, that is
 not assigned among the parameters of parse method, then we look up the
-variable in keys of the global dTemplate::parse hash. If we found it, then
-we use its value for further processing.
+variable in keys of the local parsehash of the dTemplate object. You can
+assign values to the local parsehash with the following expression:
+
+    $obj->parsehash->{key} = $value;
+
+or you can assign hash-reference to multiple objects:
+
+    $obj1->parsehash = $obj2->parsehash = { key1 => "v1", key2 => "v2" };
+
+If we found it, then we use its value for further processing.
+
+=head2 Looking for the data in the dTemplate::parse hash
+
+If we did not find the variable even in the local parsehash, then we look
+up the variable in keys of the global dTemplate::parse hash. If we found
+it, then we use its value for further processing.
 
 =head2 Processing "path" information
 
@@ -314,9 +337,18 @@ key-lookup and call the sub e.g:
 
     $value3 = { key1 => sub { return "This will be substituted"; } }
 
+=head2 Using data in $obj->parsehash->{""} as value
+
+If we did not find the referenced value by the process described above,
+then we use the the value of the "" hash-key of the object's parsehash instead
+of the variable. If it is a code-reference, then it is called exactly like
+it was the variable that has found, e.g:
+
+    $obj->parsehash->{""} = sub { "Fallback value for this template"; }
+
 =head2 Using data in $dTemplate::parse{""} as value
 
-If we did not find the referenced vlaue by the process described above,
+If we did not find the referenced value by the process described above,
 then we use the the value of $dTemplate::parse{""} hash-key instead of the
 variable. If it is a code-reference, then it is called exactly like it was
 the variable that has found.
@@ -367,9 +399,8 @@ is not the same as
 
     $variable*h*uc$
 
-When an encoder is called, then the first parameter is the encodable text,
-and the second parameter is the optional encoder parameter, which can be
-provided in the placeholder, e.g:
+An encoder can have one optional parameter, which can be provided in the
+placeholder, e.g:
 
     $weight*eq/7*if/CHECKED$
 
@@ -377,9 +408,9 @@ provided in the placeholder, e.g:
 useful for radio-buttons or drop-down menus in HTML)
 
 Note, that by default, the encoders are NOT called, if we did not find the
-variable and we are using the $dTemplate::parse{""} value. This is a
-feature, not a bug, because $dTemplate::parse{""} is designed to be used
-only to report errors or warnings, like this:
+variable and we are using the local key of the local parsehash or
+$dTemplate::parse. This is a feature, not a bug, because the "" keys
+are designed to be used only to report errors or warnings, like this:
 
     use Carp qw(cluck);
     $dTemplate::parse{""} = sub {
@@ -387,10 +418,10 @@ only to report errors or warnings, like this:
         return "";
     }
 
-If you want to use the $dTemplate::parse{""} value as it was a normal
-value, then set the $dTemplate::NOTASSIGNED_MODE variable to true. In this
-case, the encoders and the formatter are called on the value of
-$dTemplate::parse{""} also.
+If you want to use the $dTemplate::parse{""} value (or the local
+parsehash's "" key) as it was a normal value, then set the
+$dTemplate::NOTASSIGNED_MODE variable to true. In this case, the encoders
+and the formatter are called on the value of $dTemplate::parse{""} also.
 
 For example, if the $dTemplate::parse{""} is assigned to the subroutine
 above, and if $dTemplate::NOTASSIGNED_MODE is false (by default), the
@@ -399,6 +430,12 @@ above, and if $dTemplate::NOTASSIGNED_MODE is false (by default), the
 
 will be substituted with an empty string, but if it is true, it is
 substituted to "000" (because the formatter is called).
+
+The parameter-list of an encoder if it is called:
+
+  - The encodable text
+  - The (optional) encoder parameter
+  - The dTemplate::Template object in which the parsing is done
 
 =head2 Changing placeholder special characters
 
@@ -513,10 +550,9 @@ define local-only variable assignments in a subroutine:
 =head2 References and encoders
 
 You don't need to use text as the input value of an encoder, you can
-use any scalar, even referenes! If you want (for example) print a date by a
-date encoder, which expects the date to be an array ref of [ year, month,
-day ], then you can do
-this, e.g:
+use any scalar, even references! If you want (for example) print a date by
+a date encoder, which expects the date to be an array ref of [ year, month,
+day ], then you can do this, e.g:
 
    $dTemplate::ENCODERS{date} = sub {
        return "" if ref($_[0]) ne 'ARRAY';

@@ -1,3 +1,9 @@
+#
+# $Id: dTemplate.pm 55 2003-08-14 21:16:11Z dlux $
+# 
+# $URL: http://svn.dlux.hu:81/public/dTemplate/trunk/dTemplate.pm $ 
+#
+
 package dTemplate;
 use strict;
 use DynaLoader;
@@ -7,7 +13,7 @@ use vars qw($VERSION @ISA %ENCODERS $ENCODERS %parse
 
 @ISA = qw(DynaLoader);
 
-$VERSION             = '2.3';
+$VERSION             = '2.4';
 $START_DELIMITER     = '\$';
 $END_DELIMITER       = '\$';
 $VAR_PATH_SEP        = '\.';
@@ -94,9 +100,13 @@ sub spf {
 
 *ENCODERS = *dTemplate::ENCODERS;
 
-sub filename { 0 };
-sub text     { 1 };
-sub compiled { 2 };
+sub FILENAME  { 0 };
+sub TEXT      { 1 };
+sub COMPILED  { 2 };
+sub PARSEHASH { 3 };
+
+# use this constant to determinene the last field for subclassing dTemplate
+sub LAST_FIELD { PARSEHASH };
 
 sub new { my ($class,$filename)=@_;
     return undef if ! -r $filename;
@@ -106,21 +116,21 @@ sub new { my ($class,$filename)=@_;
 
 sub new_raw { my $class=shift;
   my $txt=shift;
-  my $s=[undef, ref($txt) ? $txt : \$txt];
+  my $s=[undef, (ref($txt) ? $txt : \$txt)];
   bless ($s,$class);
 };
 
 sub style  { return undef };
 
 sub compile { my $s=shift;
-    return if $s->[compiled];
+    return if $s->[COMPILED];
     $s->load_file;
 
     # template parsing 
 
     my %varhash;
     my @comp=({});
-    ${ $s->[text] } =~ s{ (.*?) ( 
+    ${ $s->[TEXT] } =~ s{ (.*?) ( 
         (?:$dTemplate::START_DELIMITER) ( (?:\w|(?:$dTemplate::VAR_PATH_SEP))* ) 
         ( (?:$dTemplate::PRINTF_SEP) (.*?[\w]) )? 
         ( (?:$dTemplate::ENCODER_SEP) (.*?) )?
@@ -199,23 +209,25 @@ sub compile { my $s=shift;
         }
     }
 
-    $s->[compiled] = $compiled;
-    $s->[text]=undef; # free up some memory
+    $s->[COMPILED] = $compiled;
+    $s->[TEXT]=undef; # free up some memory
 };
 
 sub load_file { my $s=shift;
-  return if $s->[compiled] || defined $s->[text] || !defined $s->[filename];
-  if (!open(FILE,$s->[filename])) {
-    warn "Cannot load template file: ".$s->[filename];
-    $s->[text]=\"";
+    return if $s->[COMPILED] || defined $s->[TEXT] || !defined $s->[FILENAME];
+    if (!open(FILE,$s->[FILENAME])) {
+        warn "Cannot load template file: ".$s->[FILENAME];
+        $s->[TEXT]=\"";
     close (FILE);
     return;
-  };
-  local $/=undef;
-  my $text=<FILE>;
-  $s->[text]=\$text;
-  close (FILE);
+    };
+    local $/=undef;
+    my $text=<FILE>;
+    $s->[TEXT]=\$text;
+    close (FILE);
 };
+
+sub parsehash: lvalue { shift->[PARSEHASH] ||= {} }
 
 package dTemplate::Choose;
 use strict;
