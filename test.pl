@@ -1,6 +1,6 @@
 use Test;
 BEGIN {
-  plan tests => 13;
+  plan tests => 14;
 }
 
 use dTemplate;
@@ -102,3 +102,17 @@ $tied_hash{hash} = { key1 => "next test", key2 => { key3 => "ok" } };
 $c = $t->parse( \%tied_hash );
 
 ok($c, 'Hash test: NEXT TEST - ok');
+
+# recursion in template
+
+$t = text dTemplate 'This is the frame of the internal template BEGIN ( $VAL$ ) END';
+
+$t2 = text dTemplate 'internal data: $number$';
+
+$a = $t->parse(
+    VAL => sub {
+        $t2->parse( number => 156 );
+    }
+);
+
+ok($a,'This is the frame of the internal template BEGIN ( internal data: 156 ) END')

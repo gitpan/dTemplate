@@ -1,5 +1,10 @@
 Revision history for Perl extension dTemplate.
 
+2.1.1 Mon Jun 11 14:27:50 CEST 2001
+	- dTemplate.xs was missing from the 2.1.0 distribution, fixed here
+	- Documentation about using magical hashes.
+	- added one test case
+
 2.1.0 Fri Jun  8 13:11:44 CEST 2001
 	- "parse" function is rewritten in C for efficiency ,it is now 10 
 	  times faster than the previous version

@@ -228,6 +228,64 @@ following code reference:
 By this, the output of the further "parse" calls will call this sub if a
 variable is not assigned.
 
+=head2 Magical (tied) hashes
+
+You can use magical hashes everywhere in the "parse" method parameter list, 
+where you can to use normal hashes, but because I redesign the "parse" method 
+with the speed with the first priority, it works quite a bit different than
+the older ( <= 2.0 ) versions. 
+
+At template-compile time, the "compile" method collects the variable names, 
+which are found in that template, and the "parse" method knows which 
+variables are required for processing this template.
+
+When the "parse" method realizes that the given parameter is a hash reference, 
+then it always tries all the remaining template variables (which are not 
+assigned in the preceding part of the parameter list) in that hash reference.
+
+Imagine the following situation:
+
+  $template->parse( name => "blow", \%hash);
+
+... where %hash is a magical hash, and the $template contains the "name",
+"address" and "method.type" variables. When the parse method meets with the
+\%hash, the "name" is already assigned, so it olny tries to read the
+$hash{address} and $hash{method} variables.
+
+This is not a problem with normal hashes, but if you use magical hashes, you
+may have a very expensive FETCH function, and this effect can cause problems.
+
+There are two way to work around it:
+
+=over 4
+
+=item *
+
+Use qualified variable names. If you use the following form of parse:
+
+  $template->parse( name => "blow", data => \%hash);
+
+... then the %hash is called only when the template parser finds the
+"data.address" and "data.method.type" variable references in the template. Of
+course, you have to change the template variable names also.
+
+=item *
+
+Use the hash instead of a hash reference:
+
+  $template->parse( name => "blow", %hash);
+
+In this case, the magical hash is iterated through when the parameter list
+is assembled. This is better only if you are afraid of random
+key retrieval, but it can be also slow, if the FIRSTKEY, NEXTKEY and FETCH
+operations are slow.
+
+But if the random-key retrieval is not a problem for your magical hash, 
+then use the default form instead of this, because that requires less
+operation (only one FETCH).
+
+=back
+
 =head1 HINTS
 
 =over 4
@@ -428,7 +486,7 @@ use vars qw($VERSION @ISA %ENCODERS %parse);
 
 @ISA = qw(DynaLoader);
 
-$VERSION = '2.1.0';
+$VERSION = '2.1.1';
 dTemplate->bootstrap($VERSION);
 
 # Constructors ...
@@ -571,7 +629,7 @@ sub compile { my $s=shift;
                 pack("L",$varids{ $chunk->{varn} }).  # variable ID
                 join("",map { $_."\0" } @{ $chunk->{varp}})."\0". 
                                                       # variable path in hash
-                join("",map { $_."\0" } (split(/\*+/, $chunk->{encoding})))."\0".
+                join("",map { $_."\0" } (split(/\*+/, $chunk->{encoding} || "")))."\0".
                                                       # encoding
                 $chunk->{format}."\0"
 
