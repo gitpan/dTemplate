@@ -1,6 +1,3 @@
 - Fill test.pl with tests.
-- More testing needed: style code has not been tested yet.
-- Makes the return value of parse to an object (dTemplate::Scalar), which is a string ref, 
-  for saving memory. Unfortunately this is not works.
-- Possibility to pass a filehandle as a parse parameter, to instruct the system to use it 
-  for output, instead of using the return value. This saves several string copy in the memory.
+- Makes the return value of parse to an object (dTemplate::Scalar), which is a string ref, for saving memory. Unfortunately this is not works.
+- Possibility to pass a filehandle as a parse parameter, to instruct the system to use it for output, instead of using the return value. This saves several string copy in the memory.

@@ -1,5 +1,13 @@
 Revision history for Perl extension dTemplate.
 
+0.8  Sun Sep 24 23:17:24 CEST 2000
+	- constructor naming fixes: 
+	  "scalar dTemplate" -> "text dTemplate", 
+	  "select dTemplate" -> "choose dTemplate"
+	- you can call "text dTemplate" with either scalar ref or scalar
+	- we allow "." in the template placeholder name
+	- dTemplate::Style -> dTemplate::Choose
+	- Bugfixes in the style handling: now it's working in simple cases
 0.7  Thu Sep 14 00:08:43 CEST 2000
 	- new function: encode (wrapper for encoders)
 	- bugfix: 0 parsed as ""

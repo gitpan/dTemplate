@@ -22,17 +22,17 @@ dTemplate - A powerful template handling logic with advanced features.
 
   $style={lang =>'hungarian',color=>'white'};     # Style definition
 
-  $html_template = select dTemplate( $style,      # Selector definition
+  $html_template = choose dTemplate( $style,      # Selector definition
     'hungarian+white' => define dTemplate("hun_white_template.html"),
     'spanish'         => define dTemplate("spanish.html"),
     'black+hungarian' => define dTemplate("hun_black_template.html"),
     'english'         => define dTemplate("english_template.html"),
     'empty'           => 
       "<html>This is a simple text $BODY$ is NOT substituted!!!!"</html>",
-    ''                => scalar dTemplate "<html>$BODY$</html>",
+    ''                => text dTemplate "<html>$BODY$</html>",
   );
 
-  $body_template= select dTemplate( $style,       # Selector definition
+  $body_template= choose dTemplate( $style,       # Selector definition
     'hungarian'       => define dTemplate("sziasztok_emberek.html"),
     'spanish'         => define dTemplate("adios_amigos.html"),
     ''                => define dTemplate("bye_bye.html"),
@@ -116,12 +116,13 @@ package dTemplate;
 use strict;
 use vars qw($VERSION);
 
-$VERSION = '0.7';
+$VERSION = '0.8';
 
 # Constructors ...
 
 sub define { my $obj=shift; ((ref($obj) || $obj)."::Template")->new(@_); };
-sub select { my $obj=shift; ((ref($obj) || $obj)."::Select")->new(@_); };
+sub choose { my $obj=shift; ((ref($obj) || $obj)."::Choose")->new(@_); };
+*select=*choose;
 sub text   { my $obj=shift; ((ref($obj) || $obj)."::Template")->new_raw(@_); };
 sub encode { 
   my $encoder=shift();
@@ -159,7 +160,8 @@ sub new { my ($class,$filename)=@_;
 };
 
 sub new_raw { my $class=shift;
-  my $s=[undef, shift];
+  my $txt=shift;
+  my $s=[undef, ref($txt) ? $txt : \$txt];
   bless ($s,$class);
 };
 
@@ -220,7 +222,7 @@ sub compile { my $s=shift;
   my $last_pos=0;
   my $compiled=$s->[compiled]=[[]];
   ${ $s->[text] } =~ s{ (.*?) ( 
-      \$ ( [A-Za-z_0-9]* ) ( %+ (.*?[a-zA-Z]) )? ( \*(.*?) )? \$ | $ 
+      \$ ( [A-Za-z_0-9\.]* ) ( %+ (.*?[a-zA-Z]) )? ( \*(.*?) )? \$ | $ 
     ) }{
     my ($pre,$full_matched,$varname,$full_format,$format,
       $full_encoding,$encoding)=($1,$2,$3,$4,$5,$6,$7);
@@ -242,7 +244,7 @@ sub compile { my $s=shift;
 };
 
 sub load_file { my $s=shift;
-  return if $s->[compiled] || $s->[text] || !defined $s->[filename];
+  return if $s->[compiled] || defined $s->[text] || !defined $s->[filename];
   if (!open(FILE,$s->[filename])) {
     warn "Cannot load template file: ".$s->[filename];
     $s->[text]=\"";
@@ -255,11 +257,11 @@ sub load_file { my $s=shift;
   close (FILE);
 };
 
-package dTemplate::Style;
+package dTemplate::Choose;
 use strict;
 
-sub style_hash { [ 0 ] };
-sub styles     { [ 1 ] };
+sub style_hash { 0 };
+sub styles     { 1 };
 
 sub new { my $class=shift;
   my $s=[shift,{}];
@@ -294,8 +296,9 @@ sub parse { my $s=shift;
 sub style { my $s=shift; @_ ? $s->[style_hash]=$_[0] : $s->[style_hash] };
 
 sub get_template { my ($s)=@_;
+  return undef if !$s->[styles];
   my @walk=([ $s->[styles] ]);
-  my @svals = sort grep ( { $_ } (values %{ $s->[styles] }));
+  my @svals = sort (grep ( { $_ } values %{ $s->[style_hash] } ));
   # Finds the best-matching template
   foreach my $i (@svals) {
     for (my $depth=$#walk; $depth>=0; $depth--) {
