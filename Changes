@@ -1,5 +1,10 @@
 Revision history for Perl extension dTemplate.
 
+0.7  Thu Sep 14 00:08:43 CEST 2000
+	- new function: encode (wrapper for encoders)
+	- bugfix: 0 parsed as ""
+	- bugfix for multiple encoders: it's now tested and working
+
 0.6  Sun Aug 20 00:32:00 CEST 2000
 	- Bugfixes
 	- New feature: encoders

@@ -116,13 +116,17 @@ package dTemplate;
 use strict;
 use vars qw($VERSION);
 
-$VERSION = '0.6';
+$VERSION = '0.7';
 
 # Constructors ...
 
 sub define { my $obj=shift; ((ref($obj) || $obj)."::Template")->new(@_); };
 sub select { my $obj=shift; ((ref($obj) || $obj)."::Select")->new(@_); };
 sub text   { my $obj=shift; ((ref($obj) || $obj)."::Template")->new_raw(@_); };
+sub encode { 
+  my $encoder=shift();
+  return $dTemplate::Template::ENCODERS->{$encoder}->(shift());
+};
 
 package dTemplate::Template;
 use strict;
@@ -167,7 +171,8 @@ sub parse { my $s=shift;
       push @$h,$var_name;
       next;
     };
-    $h->[0]->{$var_name}=shift || ""; # undef is not an option...
+    my $val=shift;
+    $h->[0]->{$var_name}=defined $val ? $val : ""; # undef is not an option...
   };
   my $lookfor= sub { my ($key)=@_;
     return "" if !defined $key;
@@ -192,6 +197,7 @@ sub parse { my $s=shift;
         foreach my $enc (@{$var->[4]}) {
           $x=$ENCODERS->{ $enc }->($x);
         };
+        $x;
       };
     };
     my $value= 
@@ -226,7 +232,7 @@ sub compile { my $s=shift;
         $compiled->[-1]->[1]=$full_matched;
         $compiled->[-1]->[2]=$varname;
         $compiled->[-1]->[3]=$format;
-        if ($encoding =~ /\*/) { $encoding=split(/\*+/,$encoding); };
+        if ($encoding =~ /\*/) { $encoding=[ split(/\*+/,$encoding) ]; };
         $compiled->[-1]->[4]=$encoding;
         push @$compiled,[];
       };
