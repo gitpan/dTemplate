@@ -66,6 +66,10 @@ $dTemplate::ENCODERS{reverse} = sub {
     join("", reverse split( //,$_[0]));
 };
 
+$dTemplate::ENCODERS{check_equal} = sub { my ($variable, $param) = @_;
+    return $variable eq $param ? "true" : "false";
+};
+
 $t = text dTemplate 'Encodertest: $test*uc*reverse$';
 
 $a = $t->parse( test => "Roxette" );
@@ -106,19 +110,23 @@ ok($c, 'Hash test: NEXT TEST - ok');
 # changing template placeholder special character
 
 {
-    local $dTemplate::START_DELIMITER =  '<%\s*';
-    local $dTemplate::END_DELIMITER   =  '\s*%>';
-    local $dTemplate::PRINTF_SEP      =  '\s*%%\s*';
-    local $dTemplate::ENCODER_SEP     =  '\s*@\s*';
-    $t3 = text dTemplate 'new template vars:<% text1 %% 6s @ lc %> Whoa!';
+    local $dTemplate::START_DELIMITER     =  '<%\s*';
+    local $dTemplate::VAR_PATH_SEP        =  '\/';
+    local $dTemplate::ENCODER_PARAM_START = '\(';
+    local $dTemplate::ENCODER_PARAM_END   = '\)';
+    local $dTemplate::END_DELIMITER       =  '\s*%>';
+    local $dTemplate::PRINTF_SEP          =  '\s*%%\s*';
+    local $dTemplate::ENCODER_SEP         =  '\s*@\s*';
+    $t3 = text dTemplate 'new template vars:<% text1/wow %% 6s @ lc %> Whoa! '.
+        '<% text1/test @ check_equal(TEST!) %>';
     $t3->compile;
 }
 
 $a = $t3->parse(
-    text1 => "WHO"
+    text1 => { wow => "WHO", test => "TEST!" },
 );
 
-ok($a,'new template vars:   who Whoa!');
+ok($a,'new template vars:   who Whoa! true');
 
 # recursion in template
 

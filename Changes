@@ -1,5 +1,11 @@
 Revision history for Perl extension dTemplate.
 
+2.2.0 Sun Mar 24 17:21:27 CET 2002
+	- Encoders now can get one scalar parameter
+	- More placeholders are customizable
+	- Compiled template format is now documented
+	- Added "eq" and "if" parameterizable encoders
+
 2.1.3 Sun Mar 10 16:43:41 CET 2002
 	- Added the ability to change placeholder special characters
 

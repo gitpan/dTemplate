@@ -92,7 +92,6 @@ parse(...)
         LEAVE;
     }
 
-
     compiledSV = av_fetch(array, COMPILED, 0);
     if (!compiledSV || *compiledSV == &PL_sv_undef) XSRETURN_UNDEF;
     /* silently returns with undef if the retrieve is failed */
@@ -286,12 +285,15 @@ parse(...)
         walk++; /* start with the encoders */
 
         while (*walk) {
-            char *encoder_name = walk;
-            int encoder_len = strlen(encoder_name);
+            char *encoder_name = walk, *encoder_param;
+            int encoder_len = strlen(encoder_name), encoder_param_len;
             SV **encoder = hv_fetch(encoder_hash, encoder_name, 
                 encoder_len, 0);
 
             walk += encoder_len + 1;
+	    encoder_param = walk;
+	    encoder_param_len = strlen(encoder_param);
+	    walk += encoder_param_len + 1;
             if (assigned && parsevar && (int) encoder && 
                 (SvTYPE(SvRV(*encoder)) == SVt_PVCV)
             ) {
@@ -301,6 +303,7 @@ parse(...)
                 SAVETMPS;
                 PUSHMARK(SP);
                 XPUSHs(parsevar);
+		XPUSHs(sv_2mortal(newSVpvn(encoder_param, encoder_param_len)));
                 PUTBACK;
 
                 retvals = perl_call_sv(*encoder, G_SCALAR);

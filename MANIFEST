@@ -3,6 +3,7 @@ MANIFEST
 Makefile.PL
 dTemplate.pm
 dTemplate.xs
+CompiledDataStruct.txt
 test.pl
 TODO
 README
