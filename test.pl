@@ -1,6 +1,6 @@
 use Test;
 BEGIN {
-  plan tests => 14;
+  plan tests => 15;
 }
 
 use dTemplate;
@@ -103,6 +103,23 @@ $c = $t->parse( \%tied_hash );
 
 ok($c, 'Hash test: NEXT TEST - ok');
 
+# changing template placeholder special character
+
+{
+    local $dTemplate::START_DELIMITER =  '<%\s*';
+    local $dTemplate::END_DELIMITER   =  '\s*%>';
+    local $dTemplate::PRINTF_SEP      =  '\s*%%\s*';
+    local $dTemplate::ENCODER_SEP     =  '\s*@\s*';
+    $t3 = text dTemplate 'new template vars:<% text1 %% 6s @ lc %> Whoa!';
+    $t3->compile;
+}
+
+$a = $t3->parse(
+    text1 => "WHO"
+);
+
+ok($a,'new template vars:   who Whoa!');
+
 # recursion in template
 
 $t = text dTemplate 'This is the frame of the internal template BEGIN ( $VAL$ ) END';
@@ -115,4 +132,5 @@ $a = $t->parse(
     }
 );
 
-ok($a,'This is the frame of the internal template BEGIN ( internal data: 156 ) END')
+ok($a,'This is the frame of the internal template BEGIN ( internal data: 156 ) END');
+

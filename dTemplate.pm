@@ -29,6 +29,13 @@ dTemplate - A powerful template handling logic with advanced features.
 
     $SIGNATURE$
 
+  # Changing placeholder special characters:
+
+  $dTemplate::START_DELIMITER   = '<%\s*';   # default: \$
+  $dTemplate::END_DELIMITER     = '\s*%>';   # default: \$
+  $dTemplate::PRINTF_SEP        = '\$';      # default: %+
+  $dTemplate::ENCODER_SEP       = '\@';      # default: \*
+  
   # Advanced feature: Styling
 
   $style={lang =>'hungarian',color=>'white'};     # Style definition
@@ -94,6 +101,8 @@ A template is a simple text file, which contains template variable placeholders.
 The full format of a placeholder is:
 
   $Template_Variable%printf_style_format_string*encoder1*encoder2$
+
+Note: The special characters ($, % and *) can be changed, look below.
 
 Where:
 
@@ -286,6 +295,29 @@ operation (only one FETCH).
 
 =back
 
+=head2 Changing placeholder special characters
+
+You can change the placeholder parameters by changing (or localizing) the
+following variables.
+
+  $dTemplate::START_DELIMITER   = '\$';
+  $dTemplate::END_DELIMITER     = '\$';
+  $dTemplate::PRINTF_SEP        = '%+';
+  $dTemplate::ENCODER_SEP       = '\*';
+
+If you change these variables, then these are used in the compilation of the
+following templates. Currently there is no supported way to recompile an
+already compiled template, so you need to create a new instance.
+
+Although if you want to compile a variable, which is not compiled, then you
+can call the $template->compile method on them by hand.
+
+These variables can be set to any regular expressions, not just one single 
+character.
+
+If you don't want to use any of the features, then set the corresponding
+variable to any regexp that is too complex to be true.
+  
 =head1 HINTS
 
 =over 4
@@ -327,7 +359,7 @@ Then, when you put $START_DATE*date$ to a template, you can parse this template:
 
 =back
 
-=head1 ALL-IN-ONE EXAMPLE
+=head1 EXAMPLE
 
 It is an example, which contains most of the features this module has. It is not
 intended to be a real-world example, but it can show the usage of this module.
@@ -482,11 +514,17 @@ perl(1), HTML::Template, Text::Template, CGI::FastTemplate, Template.
 package dTemplate;
 use strict;
 use DynaLoader;
-use vars qw($VERSION @ISA %ENCODERS %parse);
+use vars qw($VERSION @ISA %ENCODERS $ENCODERS %parse 
+    $START_DELIMITER $END_DELIMITER $ENCODER_SEP $PRINTF_SEP);
 
 @ISA = qw(DynaLoader);
 
-$VERSION = '2.1.2';
+$VERSION           = '2.1.3';
+$START_DELIMITER   = '\$';
+$END_DELIMITER     = '\$';
+$ENCODER_SEP       = '\*';
+$PRINTF_SEP        = '%+';
+
 dTemplate->bootstrap($VERSION);
 
 # Constructors ...
@@ -502,17 +540,7 @@ sub encode {
 
 $parse{''} = sub { shift };
 
-package dTemplate::Template;
-use strict;
-use vars qw(%ENCODERS $ENCODERS);
-use locale;
-
 $ENCODERS{''}   = sub { shift() };
-
-sub spf {
-    my $format = shift;
-    return sprintf $format,@_;
-}
 
 $ENCODERS{u}  = sub { 
     require URI::Escape;     # autoload URI::Escape module
@@ -543,16 +571,26 @@ $ENCODERS{ha} = sub { # Advanced html encoding: \n => <BR> , tabs => spaces
 
 $ENCODERS=\%ENCODERS; # for compatibility of older versions
 
-*dTemplate::ENCODERS = *ENCODERS;
+package dTemplate::Template;
+use strict;
+use vars qw(%ENCODERS $ENCODERS);
+use locale;
 
-sub filename { 0; };
-sub text     { 1; };
-sub compiled { 2; };
+sub spf {
+    my $format = shift;
+    return sprintf $format,@_;
+}
+
+*ENCODERS = *dTemplate::ENCODERS;
+
+sub filename { 0 };
+sub text     { 1 };
+sub compiled { 2 };
 
 sub new { my ($class,$filename)=@_;
-  return undef if ! -r $filename;
-  my $s=[$filename];
-  bless ($s,$class);
+    return undef if ! -r $filename;
+    my $s=[$filename];
+    bless ($s,$class);
 };
 
 sub new_raw { my $class=shift;
@@ -572,7 +610,10 @@ sub compile { my $s=shift;
     my %varhash;
     my @comp=({});
     ${ $s->[text] } =~ s{ (.*?) ( 
-        \$ ( [\w\.]* ) ( %+ (.*?[\w]) )? ( \*(.*?) )? \$ | $ 
+        (?:$dTemplate::START_DELIMITER) ( [\w\.]* ) 
+        ( (?:$dTemplate::PRINTF_SEP) (.*?[\w]) )? 
+        ( (?:$dTemplate::ENCODER_SEP) (.*?) )?
+        (?:$dTemplate::END_DELIMITER) | $ 
     ) }{
         my ($pre,$full_matched,$varname,$full_format,$format,
             $full_encoding,$encoding) = ($1,$2,$3,$4,$5,$6,$7);

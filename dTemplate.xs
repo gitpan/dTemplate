@@ -70,14 +70,15 @@ parse(...)
     STRLEN  compiled_len;
     I32 i, number_of_variables, vars_left;
     SV **variable;
-    HV *global_parse_hash = get_hv("dTemplate::parse", TRUE);
-    HV *encoder_hash      = get_hv("dTemplate::ENCODERS", TRUE);
+    HV *global_parse_hash = perl_get_hv("dTemplate::parse", TRUE);
+    HV *encoder_hash      = perl_get_hv("dTemplate::ENCODERS", TRUE);
     StringChunk *result;
     
     if (!SvROK(self)) XSRETURN_UNDEF; 
     array = (AV*) SvRV(self);
 
-    if (!av_exists(array, COMPILED)) {
+    compiledSV = av_fetch(array, COMPILED, FALSE);
+    if (!compiledSV || *compiledSV == &PL_sv_undef) {
         dSP;
         ENTER;
         SAVETMPS;
@@ -85,18 +86,15 @@ parse(...)
         XPUSHs(self);
         PUTBACK;
 
-        call_method("compile", G_VOID | G_DISCARD );
+        perl_call_method("compile", G_VOID | G_DISCARD );
 
         FREETMPS;
         LEAVE;
-
-        if (!av_exists(array, COMPILED)) XSRETURN_UNDEF;
-        /* silently returns with undef if the compilation is failed */
     }
 
 
     compiledSV = av_fetch(array, COMPILED, 0);
-    if (!compiledSV) XSRETURN_UNDEF;
+    if (!compiledSV || *compiledSV == &PL_sv_undef) XSRETURN_UNDEF;
     /* silently returns with undef if the retrieve is failed */
 
     /* get the compiled string */
@@ -267,7 +265,7 @@ parse(...)
                 XPUSHs(full_m);
                 PUTBACK;
 
-                retvals = call_sv( parsevar, G_SCALAR );
+                retvals = perl_call_sv( parsevar, G_SCALAR );
 
                 SPAGAIN;
 
@@ -305,7 +303,7 @@ parse(...)
                 XPUSHs(parsevar);
                 PUTBACK;
 
-                retvals = call_sv(*encoder, G_SCALAR);
+                retvals = perl_call_sv(*encoder, G_SCALAR);
 
                 SPAGAIN;
 
@@ -342,7 +340,7 @@ parse(...)
                 XPUSHs(parsevar);
                 PUTBACK;
 
-                retvals = call_pv("dTemplate::Template::spf", G_SCALAR );
+                retvals = perl_call_pv("dTemplate::Template::spf", G_SCALAR );
 
                 SPAGAIN;
 

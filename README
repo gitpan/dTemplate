@@ -27,6 +27,13 @@ SYNOPSIS
 
         $SIGNATURE$
 
+      # Changing placeholder special characters:
+
+      $dTemplate::START_DELIMITER   = '<%\s*';   # default: \$
+      $dTemplate::END_DELIMITER     = '\s*%>';   # default: \$
+      $dTemplate::PRINTF_SEP        = '\$';      # default: %+
+      $dTemplate::ENCODER_SEP       = '\@';      # default: \*
+  
       # Advanced feature: Styling
 
       $style={lang =>'hungarian',color=>'white'};     # Style definition
@@ -84,13 +91,14 @@ USAGE
     After that you can see how to make new encoders.
 
   How a template looks like
-
     A template is a simple text file, which contains template variable
     placeholders.
 
     The full format of a placeholder is:
 
       $Template_Variable%printf_style_format_string*encoder1*encoder2$
+
+    Note: The special characters ($, % and *) can be changed, look below.
 
     Where:
 
@@ -121,7 +129,6 @@ USAGE
         part.
 
   Definition of a template
-
     There are 3 ways to define a template.
 
     $template = define dTemplate $filename
@@ -136,7 +143,6 @@ USAGE
         can create styled templates.
 
   Parsing
-
     Parsing means substituting the variables which are defined in the
     template. It can be done by simply calling the "parse" method of a
     dTemplate object.
@@ -182,7 +188,6 @@ USAGE
     reference to save some memory. It is useful if you use large templates.
 
   Encoders
-
     The global hash, %dTemplate::ENCODERS contains the defined encoders.
 
     The hash keys are the names, the values are subroutine references. These
@@ -190,7 +195,6 @@ USAGE
     encoded value.
 
   $dTemplate::parse{''}
-
     $dTemplate::parse{''} is a special hash key in the %dTemplate::parse
     hash. This value is parsed into the place of the unassigned variable.
 
@@ -210,7 +214,6 @@ USAGE
     variable is not assigned.
 
   Magical (tied) hashes
-
     You can use magical hashes everywhere in the "parse" method parameter
     list, where you can to use normal hashes, but because I redesign the
     "parse" method with the speed with the first priority, it works quite a
@@ -263,6 +266,29 @@ USAGE
         hash, then use the default form instead of this, because that
         requires less operation (only one FETCH).
 
+  Changing placeholder special characters
+    You can change the placeholder parameters by changing (or localizing)
+    the following variables.
+
+      $dTemplate::START_DELIMITER   = '\$';
+      $dTemplate::END_DELIMITER     = '\$';
+      $dTemplate::PRINTF_SEP        = '%+';
+      $dTemplate::ENCODER_SEP       = '\*';
+
+    If you change these variables, then these are used in the compilation of
+    the following templates. Currently there is no supported way to
+    recompile an already compiled template, so you need to create a new
+    instance.
+
+    Although if you want to compile a variable, which is not compiled, then
+    you can call the $template->compile method on them by hand.
+
+    These variables can be set to any regular expressions, not just one
+    single character.
+
+    If you don't want to use any of the features, then set the corresponding
+    variable to any regexp that is too complex to be true.
+
 HINTS
     *   In the first parse of every template, the templates will be
         compiled. It is used to speed up parsing.
@@ -293,7 +319,7 @@ HINTS
             ...
           );
 
-ALL-IN-ONE EXAMPLE
+EXAMPLE
     It is an example, which contains most of the features this module has.
     It is not intended to be a real-world example, but it can show the usage
     of this module.
