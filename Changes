@@ -1,5 +1,14 @@
 Revision history for Perl extension dTemplate.
 
+2.2.2 Sat Apr  6 12:14:36 CEST 2002
+	- Added "printf" encoder
+	- Changed the encoder separator from \* to \*+ to make encoders
+	  completely replace the printf-style formtting
+	- Fixed empty README file
+
+2.2.1 Sun Mar 24 21:54:12 CET 2002
+	- Added the missing documentation
+
 2.2.0 Sun Mar 24 17:21:27 CET 2002
 	- Encoders now can get one scalar parameter
 	- More placeholders are customizable

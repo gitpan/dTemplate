@@ -6,7 +6,7 @@ WriteMakefile(
     'VERSION_FROM' => 'dTemplate.pm', # finds $VERSION
 #    'OPTIMIZE' => '-Wall -ggdb',
     'dist'      => {
-        PREOP => 'perl -MPod::Text -e "pod2text(q(dTemplate.pm))" > README'
+        PREOP => 'perl -MPod::Text -e "pod2text(q(dTemplate.pod))" > README'
     }
 );
 

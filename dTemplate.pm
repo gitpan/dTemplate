@@ -7,11 +7,11 @@ use vars qw($VERSION @ISA %ENCODERS $ENCODERS %parse
 
 @ISA = qw(DynaLoader);
 
-$VERSION             = '2.2.1';
+$VERSION             = '2.2.2';
 $START_DELIMITER     = '\$';
 $END_DELIMITER       = '\$';
 $VAR_PATH_SEP        = '\.';
-$ENCODER_SEP         = '\*';
+$ENCODER_SEP         = '\*+';
 $ENCODER_PARAM_START = '\/';
 $ENCODER_PARAM_END   = '';
 $PRINTF_SEP          = '%+';
@@ -66,6 +66,10 @@ $ENCODERS{eq} = sub { # equality check
 
 $ENCODERS{if} = sub { # returns the second parameter if the first is true
     return $_[1] if $_[0];
+};
+
+$ENCODERS{printf} = sub { # returns the printf-formatted output
+    return sprintf("%".$_[1], $_[0]);
 };
 
 $ENCODERS=\%ENCODERS; # for compatibility of older versions

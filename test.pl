@@ -1,6 +1,6 @@
 use Test;
 BEGIN {
-  plan tests => 15;
+  plan tests => 16;
 }
 
 use dTemplate;
@@ -50,7 +50,7 @@ $c = $t->parse( { BODY => "Abcdef", Bodrog => "Ahhh" });
 
 ok($c, "<html>Abcdef</html>");
 
-$t = text dTemplate '<html>$name*lc$<br>$code*uc$</html>';
+$t = text dTemplate '<html>$name******lc$<br>$code*uc$</html>';
 
 $t->compile;
 
@@ -81,6 +81,12 @@ $t = text dTemplate 'Sprintftest: $data%05s*uc$';
 $a = $t->parse( data => "hu" );
 
 ok($a, 'Sprintftest: 000HU');
+
+$t = text dTemplate 'Printf encoder test: $data*uc*printf/05s$';
+
+$a = $t->parse( data => "uk" );
+
+ok($a, 'Printf encoder test: 000UK');
 
 $t = text dTemplate 'Hash test: $hash.key1*uc$ - $hash.key2.key3$';
 

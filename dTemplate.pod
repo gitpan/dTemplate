@@ -35,7 +35,7 @@ dTemplate - A powerful template handling logic with advanced features.
   $dTemplate::END_DELIMITER       = '\s*%>'; # default: \$
   $dTemplate::VAR_PATH_SEP        = '\/';    # default: \.
   $dTemplate::PRINTF_SEP          = '\$';    # default: %+
-  $dTemplate::ENCODER_SEP         = '\@';    # default: \*
+  $dTemplate::ENCODER_SEP         = '\@';    # default: \*+
   $dTemplate::ENCODER_PARAM_START = '\(';    # default: \/
   $dTemplate::ENCODER_PARAM_END   = '\)';    # default:
   
@@ -122,19 +122,28 @@ This is an optional part. Used when you want to format the output. You can
 use as many '%' as you want, it can be good to pad the variable, for example
 when you parse a table. E.g:  $MONEY%%%%%%011d$ is a valid placeholder.
 
+This version can be used only before the encoders (because of historical
+reasons) and if you need to use it other places in the encoder chain, then you
+can use the "printf" encoder instead (see below).
+
+However you have a "printf" encoder since 2.2.2, this formatting will be
+supported in the later versions because of the simple syntax.
+
 =item *encoder/par
 
 There are predefined encoders in the module, which can be used to format 
 the input data. 
 These are:
 
-  - u       : url-encoder
-  - h       : HTML-encoder (converts > to &gt;, etc)
-  - ha      : Advanced HTML encoder (\n => <BR>, tabs => spaces)
-  - uc      : convert the string to uppercase
-  - lc      : convert the string to lowercase
-  - eq/par  : returns true if the encoded string is "par"
-  - if/par  : returns "par" if the encoded string is true
+  - u          : url-encoder
+  - h          : HTML-encoder (converts > to &gt;, etc)
+  - ha         : Advanced HTML encoder (\n => <BR>, tabs => spaces)
+  - uc         : convert the string to uppercase
+  - lc         : convert the string to lowercase
+  - eq/par     : returns true if the encoded string is "par"
+  - if/par     : returns "par" if the encoded string is true
+  - printf/par : returns printf formatted data, where "par" is the format
+		 string
 
 "/par" is an optional scalar parameter.
 
