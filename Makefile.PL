@@ -4,4 +4,9 @@ use ExtUtils::MakeMaker;
 WriteMakefile(
     'NAME'	=> 'dTemplate',
     'VERSION_FROM' => 'dTemplate.pm', # finds $VERSION
+#    'OPTIMIZE' => '-Wall -ggdb',
+    'dist'      => {
+        PREOP => 'perl -MPod::Text -e "pod2text(q(dTemplate.pm))" > README'
+    }
 );
+

@@ -1,5 +1,12 @@
 Revision history for Perl extension dTemplate.
 
+2.1.0 Fri Jun  8 13:11:44 CEST 2001
+	- "parse" function is rewritten in C for efficiency ,it is now 10 
+	  times faster than the previous version
+	- rewritten "compile" method to provide the new "parse" structure
+	- $dTemplate::parse{''} added to handle unassigned variables
+	- added simple test cases
+
 2.0  Sun Mar  4 19:03:44 CET 2001
 	- Rewritten documentation
 	- Example added

@@ -51,7 +51,7 @@ my $person_hash={
 ### this hash is simply added to other parse parameters
 
 my $parse_hash={
-  "unknown.data" => 157,
+  unknown => { data => 157 },
 };
 
 ### the main page parse routine

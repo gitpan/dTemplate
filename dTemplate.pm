@@ -208,6 +208,26 @@ The global hash, %dTemplate::ENCODERS contains the defined encoders.
 The hash keys are the names, the values are subroutine references. These subs
 get the encodable data as the first parameter and returns the encoded value.
 
+=head2 $dTemplate::parse{''}
+
+$dTemplate::parse{''} is a special hash key in the %dTemplate::parse hash. 
+This value is parsed into the place of the unassigned variable.
+
+By default, it is an empty scalar, so you won't even notice if you forget to
+assign a variable.
+
+If you want to be warned if a variable is not assigned, you can use the
+following code reference:
+
+  use Carp qw(cluck);
+  $dTemplate::parse{''} = sub {
+      cluck "$_[0] is not assigned";
+      return "";
+  }
+
+By this, the output of the further "parse" calls will call this sub if a
+variable is not assigned.
+
 =head1 HINTS
 
 =over 4
@@ -310,7 +330,7 @@ directory of the module distribution.
   ### this hash is simply added to other parse parameters
 
   my $parse_hash={
-    "unknown.data" => 157,
+    "unknown" => { data => 157 },
   };
 
   ### the main page parse routine
@@ -397,16 +417,19 @@ dLux (Szabó, Balázs) <dlux@kapu.hu>
 
 =head1 SEE ALSO
 
-perl(1).
+perl(1), HTML::Template, Text::Template, CGI::FastTemplate, Template.
 
 =cut
 
 package dTemplate;
 use strict;
-use vars qw($VERSION);
+use DynaLoader;
+use vars qw($VERSION @ISA %ENCODERS %parse);
 
-$VERSION = '2.0';
-$dTemplate::KEEP_NOT_ASSIGNED_TEXT=1; # for compatibility and debug
+@ISA = qw(DynaLoader);
+
+$VERSION = '2.1.0';
+dTemplate->bootstrap($VERSION);
 
 # Constructors ...
 
@@ -416,41 +439,53 @@ sub choose { my $obj=shift; ((ref($obj) || $obj)."::Choose")->new(@_); };
 sub text   { my $obj=shift; ((ref($obj) || $obj)."::Template")->new_raw(@_); };
 sub encode { 
   my $encoder=shift();
-  return $dTemplate::Template::ENCODERS->{$encoder}->(shift());
+  return $ENCODERS{$encoder}->(shift());
 };
+
+$parse{''} = sub { shift };
 
 package dTemplate::Template;
 use strict;
 use vars qw(%ENCODERS $ENCODERS);
 use locale;
 
-%ENCODERS=(
-  ''  => sub { shift() },
-  'u' => sub { 
+$ENCODERS{''}   = sub { shift() };
+
+sub spf {
+    my $format = shift;
+    return sprintf $format,@_;
+}
+
+$ENCODERS{u}  = sub { 
     require URI::Escape;     # autoload URI::Escape module
-    $ENCODERS{u}=sub {
-      URI::Escape::uri_escape($_[0]||"","^a-zA-Z0-9_.!~*'()"); 
+    $ENCODERS{u} = sub {
+        URI::Escape::uri_escape($_[0]||"","^a-zA-Z0-9_.!~*'()"); 
     };
     $ENCODERS{u}->(shift);
-  },
-  'h' => sub { 
+};
+
+$ENCODERS{h} = sub { 
     require HTML::Entities;  # autoload HTML::Entities module
     $ENCODERS{h}=sub {
-      HTML::Entities::encode($_[0]||"","^\n\t !\#\$%-;=?-~") ; 
+        HTML::Entities::encode($_[0]||"","^\n\t !\#\$%-;=?-~") ; 
     };
     $ENCODERS{h}->(shift);
-  },
-  'uc'=> sub { uc($_[0]) },
-  'lc'=> sub { lc($_[0]) },
-  'ha'=> sub { # Advanced html encoding: \n => <BR> , tabs => spaces
+};
+
+$ENCODERS{uc} = sub { uc($_[0]) };
+
+$ENCODERS{lc} = sub { lc($_[0]) };
+
+$ENCODERS{ha} = sub { # Advanced html encoding: \n => <BR> , tabs => spaces
     my $e=$ENCODERS->{'h'}->($_[0]);
     $e =~ s/\n/<BR>/g;
     $e =~ s/\t/&nbsp;&nbsp;&nbsp;/go;
     $e;
-  }
-);
+};
 
 $ENCODERS=\%ENCODERS; # for compatibility of older versions
+
+*dTemplate::ENCODERS = *ENCODERS;
 
 sub filename { 0; };
 sub text     { 1; };
@@ -468,96 +503,85 @@ sub new_raw { my $class=shift;
   bless ($s,$class);
 };
 
-sub parse { my $s=shift;
-  $s->compile;
-  my $h= [{}];
-  while (@_) {
-    my $var_name=shift;
-    if (UNIVERSAL::isa($var_name,'HASH')) {
-      push @$h,$var_name;
-      next;
-    };
-    my $val=shift;
-    $h->[0]->{$var_name}=defined $val ? $val : ""; # undef is not an option...
-  };
-  push @$h, \%dTemplate::parse if %dTemplate::parse;
-  my $lookfor= sub { my ($key)=@_;
-    return "" if !defined $key;
-    my @keyparts=split(/\./,$key);
-    foreach my $hash (@$h) {
-      if (@keyparts>1 && exists $hash->{$keyparts[0]}) { 
-        # xxx.yyy ... form, and xxx is matched
-        my $result=$hash;
-        foreach my $keypart (@keyparts) {
-          $result=undef,last if !UNIVERSAL::isa($result,'HASH');
-          $result=$result->{$keypart};
-        }
-        return defined $result ? $result : "";
-      }
-      return defined $hash->{$key} ? $hash->{$key} : ""
-        if exists $hash->{$key};
-    };
-    return undef;
-  };
-  my $ret;
-  foreach my $var (@{ $s->[compiled] }) {
-    # $var->[0]: text
-    # $var->[1]: Original text of the variable substitution
-    # $var->[2]: Variable name (or undef if last text)
-    # $var->[3]: Formatting characters
-    # $var->[4]: Encoding (h: html, u: url)
-    my $val_got=$lookfor->($var->[2]);
-    my $encoder;
-    if (! ref($var->[4])) { # Only one encoder
-      $encoder=$ENCODERS{ $var->[4] } || $ENCODERS{''};
-    } else { # Multiple encoders!
-      $encoder=sub { my $x=$_[0]; 
-        foreach my $enc (@{$var->[4]}) {
-          $x=$ENCODERS{ $enc }->($x);
-        };
-        $x;
-      };
-    };
-    my $value= 
-      ! defined $val_got                          ? 
-               $dTemplate::KEEP_NOT_ASSIGNED_TEXT ? $var->[1] : ""      :
-      ref($val_got) eq 'CODE'                     ? $encoder->($val_got->()) :
-      UNIVERSAL::isa($val_got,'SCALAR')           ? $encoder->($$val_got) :
-      do { my $r= $encoder->($val_got); ref($r) ? undef : $r };
-    $ret.=$var->[0].($var->[3]?sprintf("%".$var->[3],$value):$value);
-  };
-  #return $ret;
-  return dTemplate::Scalar->new(\$ret);
-};
-
 sub style  { return undef };
 
 sub compile { my $s=shift;
-  return if $s->[compiled];
-  $s->load_file;
-  my $last_pos=0;
-  my $compiled=$s->[compiled]=[[]];
-  ${ $s->[text] } =~ s{ (.*?) ( 
-      \$ ( [\w\.]* ) ( %+ (.*?[\w]) )? ( \*(.*?) )? \$ | $ 
+    return if $s->[compiled];
+    $s->load_file;
+
+    # template parsing 
+
+    my %varhash;
+    my @comp=({});
+    ${ $s->[text] } =~ s{ (.*?) ( 
+        \$ ( [\w\.]* ) ( %+ (.*?[\w]) )? ( \*(.*?) )? \$ | $ 
     ) }{
-    my ($pre,$full_matched,$varname,$full_format,$format,
-      $full_encoding,$encoding)=($1,$2,$3,$4,$5,$6,$7);
-    if ($full_matched eq '$$') { # $$ sign
-      $compiled->[-1]->[0].=$pre.'$';
-    } else {;
-      $compiled->[-1]->[0].=$pre;
-      if ($varname) {
-        $compiled->[-1]->[1]=$full_matched;
-        $compiled->[-1]->[2]=$varname;
-        $compiled->[-1]->[3]=$format;
-        if ($encoding =~ /\*/) { $encoding=[ split(/\*+/,$encoding) ]; };
-        $compiled->[-1]->[4]=$encoding;
-        push @$compiled,[];
-      };
-    };
-    "";
-  }gxsce;
-  $s->[text]=undef; # free up some memory
+        my ($pre,$full_matched,$varname,$full_format,$format,
+            $full_encoding,$encoding) = ($1,$2,$3,$4,$5,$6,$7);
+        my $clast = $comp[-1] ||= {};
+        if ($full_matched eq '$$') { # $$ sign
+            $clast->{text} .= $pre.'$';
+        } else {
+            $clast->{text} .= $pre;
+            if ($varname) {
+                $clast->{full_matched} = $full_matched;
+                my ($varn, @varp) = split (/\./, $varname);
+                $clast->{varn} = $varn;
+                $varhash{$varn}++;
+                $clast->{varp} = \@varp;
+                $clast->{format} = defined $format ? "%".$format : "";
+                $clast->{encoding}=$encoding;
+                push @comp,{};
+            };
+        };
+        "";
+    }gxsce;
+
+    # assigning ID-s for variables
+
+    my @variables = sort { 
+        $varhash{$b} <=> $varhash{$a} || length($a) <=> length($b) 
+    } keys %varhash;
+    my %varids;
+    for (my $i=0; $i<@variables; $i++) {
+        $varids{$variables[$i]} = $i;
+    }
+
+    # settings up the compiled scalar:
+    # variable parameter hash + inverted index
+
+    my ($var_list, $var_index) = ("","");
+    foreach my $varname (@variables) {
+        my $varlen = length($varname);
+        my $addspc = $varlen >= 4 ? 0 : 4 - $varlen;
+        my $var_list_add = " ".$varname.(" " x $addspc);
+        $var_list  .= $var_list_add;
+        my $var_index_add = "\0" x length($var_list_add);
+        substr($var_index_add,0,4) = pack("L", $varids{$varname});
+        $var_index .= $var_index_add;
+    }
+    my $compiled = pack("L",scalar(@variables)). $var_list. " \0". $var_index."";
+
+    # chunks
+
+    foreach my $chunk (@comp) {
+        $compiled .= pack("L", length($chunk->{text})).$chunk->{text};
+        if ($chunk->{full_matched}) {
+            $compiled .= $chunk->{full_matched}."\0". # full matched string
+                pack("L",$varids{ $chunk->{varn} }).  # variable ID
+                join("",map { $_."\0" } @{ $chunk->{varp}})."\0". 
+                                                      # variable path in hash
+                join("",map { $_."\0" } (split(/\*+/, $chunk->{encoding})))."\0".
+                                                      # encoding
+                $chunk->{format}."\0"
+
+        } else {
+            $compiled .= "\0";
+        }
+    }
+
+    $s->[compiled] = $compiled;
+    $s->[text]=undef; # free up some memory
 };
 
 sub load_file { my $s=shift;
@@ -638,17 +662,6 @@ sub get_template { my ($s)=@_;
   };
   return ref($retval) eq 'SCALAR' ? $$retval : $retval;
 };
-
-package dTemplate::Scalar;
-use strict;
-
-sub new { bless ($_[1],ref($_[0]) || $_[0]); };
-
-use overload(
-  '""'      => sub { ${ shift() } },
-  '=='      => sub { overload::StrVal(shift) eq overload::StrVal(shift) },
-   fallback => 1,
-);
 
 1;
 
