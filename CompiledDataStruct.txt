@@ -14,7 +14,7 @@ The dTemplate compiled data has the following format:
     - if not the last chunk:
 	- full matched string, including delimiters [ 0-terminated ]
 	- variable ID [ I32 ]
-	- variable path in qualified variable [ \0 terminated list ] 
+	- variable path in qualified variable [ \0 terminated list ] (including variable name also)
 	    - variable path part [ \0 terminated strings ]
 	- encoder list [ \0 terminated list ]
 	    - encoder [ \0 terminated string ]

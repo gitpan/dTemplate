@@ -1,6 +1,6 @@
 use Test;
 BEGIN {
-  plan tests => 16;
+  plan tests => 18;
 }
 
 use dTemplate;
@@ -21,7 +21,7 @@ my $test_compiled =
   # first chunk (text)
   pack("L",6).'<html>'.
   # first chunk (variable)
-  '$BODY$'."\0".pack("L",0)."\0\0\0".
+  '$BODY$'."\0".pack("L",0)."BODY\0\0\0\0".
   # second chunk (text)
   pack("L",7).'</html>'.
   # template end
@@ -53,6 +53,8 @@ ok($c, "<html>Abcdef</html>");
 $t = text dTemplate '<html>$name******lc$<br>$code*uc$</html>';
 
 $t->compile;
+
+$dTemplate::parse{""} = sub { return shift; };
 
 $a = $t->parse( name => "dLux" );
 
@@ -148,3 +150,60 @@ $a = $t->parse(
 
 ok($a,'This is the frame of the internal template BEGIN ( internal data: 156 ) END');
 
+$dTemplate::NOTASSIGNED_MODE=0;
+
+# testing parse{''}
+
+$t = dTemplate->new( text => 'Test for dTemplate::parse{""}: $text.text2.text3*uc$' );
+$dTemplate::parse{""} = sub {
+    my ($variable) = $_[0] =~ /^\$(.*?)(?:\*|$)/;
+    my @varpath = @{ $_[1] };
+    return "test_$variable-".join(",",@varpath);
+};
+
+$a = $t->parse();
+
+ok ($a, 'Test for dTemplate::parse{""}: test_text.text2.text3-text,text2,text3');
+
+$dTemplate::NOTASSIGNED_MODE=1;
+
+$a = $t->parse();
+
+ok ($a, 'Test for dTemplate::parse{""}: TEST_TEXT.TEXT2.TEXT3-TEXT,TEXT2,TEXT3');
+
+delete $dTemplate::parse{""};
+$dTemplate::NOTASSIGNED_MODE=undef;
+
+# testing sub-ref: 
+
+$t = dTemplate->new( text => 'Test for sub-in-hash: $text.text2.text3*lc$' );
+
+$a = $t->parse(
+    text => {
+        text2 => sub {
+            return "Hello ".join(" ",@{$_[1]})."!";
+        }
+    }
+);
+
+ok ($a, 'Test for sub-in-hash: hello text text2 text3!');
+
+# test by Dennis Boylan
+my $t = dTemplate->new( text => 'TEST5 $Y*eq/5*if/OK$');
+
+$dTemplate::parse{""} = sub {
+    my ($param, $short, $self) = @_;
+    if ($self != $t) { # third parameter is "self"
+        return "BAD";
+    }
+    if ($short->[0] eq "Y") {
+        return 5;
+    }
+    return "";
+};
+
+$dTemplate::NOTASSIGNED_MODE = 1;
+
+$a = $t->parse( X=>1, X5=> 2);
+
+ok ($a, "TEST5 OK");

@@ -70,8 +70,9 @@ parse(...)
     STRLEN  compiled_len;
     I32 i, number_of_variables, vars_left;
     SV **variable;
-    HV *global_parse_hash = perl_get_hv("dTemplate::parse", TRUE);
-    HV *encoder_hash      = perl_get_hv("dTemplate::ENCODERS", TRUE);
+    HV *global_parse_hash   = perl_get_hv("dTemplate::parse", TRUE);
+    HV *encoder_hash        = perl_get_hv("dTemplate::ENCODERS", TRUE);
+    SV *notassigned_mode    = perl_get_sv("dTemplate::NOTASSIGNED_MODE", FALSE);
     StringChunk *result;
     
     if (!SvROK(self)) XSRETURN_UNDEF; 
@@ -201,7 +202,7 @@ parse(...)
         I32 chunk_text_size = * ( (I32 *) walk )++;
         I32 var_id, full_matched_len;
         SV *parsevar;
-        char *full_matched;
+        char *full_matched, *variable_path;
         int assigned = 1;
 
         append_StringChunk(result, walk, chunk_text_size);
@@ -218,6 +219,10 @@ parse(...)
 
         parsevar = variable[var_id];
 
+        /* Setting a pointer to the variable path */   
+        variable_path = walk;
+        walk += strlen(variable_path) +1;
+
         /* walk through the "."-s */
         while (*walk) {
             char *varpart = walk;
@@ -225,28 +230,34 @@ parse(...)
 
             walk += varlen + 1;
 
-            if (parsevar && SvROK(parsevar) && 
-                (SvTYPE(SvRV(parsevar)) == SVt_PVHV) ) { 
-                HV *hash = (HV *) SvRV(parsevar);
-                SV **newvar = hv_fetch(hash, varpart, varlen, 0);
+            if (parsevar && SvROK(parsevar)) {
+                svtype t = SvTYPE(SvRV(parsevar));
+                if (t == SVt_PVCV)
+                    continue;
 
-                if (newvar) {
-                    parsevar = *newvar;
-                    DO_IF_GET_MAGIC(parsevar);
+                if (t == SVt_PVHV) {
+                    HV *hash = (HV *) SvRV(parsevar);
+                    SV **newvar = hv_fetch(hash, varpart, varlen, 0);
+
+                    if (newvar) {
+                        parsevar = *newvar;
+                        DO_IF_GET_MAGIC(parsevar);
+                        continue;
+                    }
                 }
-                else
-                    parsevar = NULL;
-            } else
-                parsevar = NULL;
+            }
+            parsevar = NULL;
         }
 
         if (!parsevar) { /* variable is not assigned */
+            assigned = 0;
             SV **empty_val = hv_fetch(global_parse_hash, "", 0, 0);
             if (empty_val) {
+                if (notassigned_mode && SvTRUE(notassigned_mode))
+                    assigned = 1;
                 parsevar = *empty_val;
                 DO_IF_GET_MAGIC(parsevar);
             }
-            assigned = 0;
         }
 
         /* processing the returned variable */
@@ -256,13 +267,28 @@ parse(...)
                 int retvals;
                 SV* full_m = sv_2mortal(newSVpv(full_matched, 
                     full_matched_len));
+                AV* var_path = newAV();
+                SV* var_path_ref = sv_2mortal(newRV_noinc((SV *) var_path));
 
-                dSP;
-                ENTER;
-                SAVETMPS;
-                PUSHMARK(SP);
-                XPUSHs(full_m);
-                PUTBACK;
+                while (*variable_path) {
+                    int len = strlen(variable_path);
+                    av_push(var_path, newSVpv(variable_path, len));
+                    variable_path += len + 1;
+                }
+
+                {
+
+                    dSP;
+                    ENTER;
+                    SAVETMPS;
+                    PUSHMARK(SP);
+                    XPUSHs(full_m);
+                    XPUSHs(var_path_ref);
+                    XPUSHs(self);
+                    PUTBACK;
+                    
+                }
+
 
                 retvals = perl_call_sv( parsevar, G_SCALAR );
 
@@ -290,10 +316,13 @@ parse(...)
             SV **encoder = hv_fetch(encoder_hash, encoder_name, 
                 encoder_len, 0);
 
+            // if (parsevar)
+            //    printf("Parsevar: %s\n", SvPV_nolen(parsevar));
+            // fprintf(stderr, "Encoder name: %s\n", encoder_name);
             walk += encoder_len + 1;
-	    encoder_param = walk;
-	    encoder_param_len = strlen(encoder_param);
-	    walk += encoder_param_len + 1;
+            encoder_param = walk;
+            encoder_param_len = strlen(encoder_param);
+            walk += encoder_param_len + 1;
             if (assigned && parsevar && (int) encoder && 
                 (SvTYPE(SvRV(*encoder)) == SVt_PVCV)
             ) {
@@ -303,7 +332,7 @@ parse(...)
                 SAVETMPS;
                 PUSHMARK(SP);
                 XPUSHs(parsevar);
-		XPUSHs(sv_2mortal(newSVpvn(encoder_param, encoder_param_len)));
+		        XPUSHs(sv_2mortal(newSVpvn(encoder_param, encoder_param_len)));
                 PUTBACK;
 
                 retvals = perl_call_sv(*encoder, G_SCALAR);

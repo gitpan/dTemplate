@@ -7,7 +7,7 @@ use vars qw($VERSION @ISA %ENCODERS $ENCODERS %parse
 
 @ISA = qw(DynaLoader);
 
-$VERSION             = '2.2.2';
+$VERSION             = '2.3';
 $START_DELIMITER     = '\$';
 $END_DELIMITER       = '\$';
 $VAR_PATH_SEP        = '\.';
@@ -20,16 +20,24 @@ dTemplate->bootstrap($VERSION);
 
 # Constructors ...
 
-sub define { my $obj=shift; ((ref($obj) || $obj)."::Template")->new(@_); };
-sub choose { my $obj=shift; ((ref($obj) || $obj)."::Choose")->new(@_); };
-*select=*choose;
-sub text   { my $obj=shift; ((ref($obj) || $obj)."::Template")->new_raw(@_); };
+sub new {
+    my $obj = shift;
+    my $type = shift or die "Invalid constructor call. Use: new dTemplate type => ...";
+    return ((ref $obj || $obj)."::Template")->new(@_) if        $type eq "file";
+    return ((ref $obj || $obj)."::Choose")->new(@_) if          $type eq "choose" || $type eq "select";
+    return ((ref $obj || $obj)."::Template")->new_raw(@_) if    $type eq "text";
+    die "Invalid type in dTemplate constructor: $type";
+}
+
+sub define { shift->new(file   => @_) }
+sub choose { shift->new(choose => @_) }
+sub select { shift->new(choose => @_) }
+sub text   { shift->new(text   => @_) }
+
 sub encode { 
-  my $encoder=shift();
+  my $encoder = shift;
   return $ENCODERS{$encoder}->(shift());
 };
-
-$parse{''} = sub { shift };
 
 $ENCODERS{''}   = sub { shift() };
 
@@ -127,8 +135,9 @@ sub compile { my $s=shift;
             $clast->{text} .= $pre;
             if ($varname) {
                 $clast->{full_matched} = $full_matched;
-                my ($varn, @varp) = split (/$dTemplate::VAR_PATH_SEP/, 
+                my (@varp) = split (/$dTemplate::VAR_PATH_SEP/, 
                     $varname);
+                my $varn = $varp[0];
                 $clast->{varn} = $varn;
                 $varhash{$varn}++;
                 $clast->{varp} = \@varp;

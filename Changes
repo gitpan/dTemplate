@@ -1,5 +1,13 @@
 Revision history for Perl extension dTemplate.
 
+2.3   Sun Jul 13 23:05:36 CEST 2003
+	- Added a new configuration variable $NOTASSIGNED, which determines
+	  wether or not to call the encoders of parse{''} output.
+	- Subroutine references can be parameterized from the template
+	- The manual page is almost rewritten
+	- Styles are documented
+	- As other places, "new" can be used as a constructor
+
 2.2.2 Sat Apr  6 12:14:36 CEST 2002
 	- Added "printf" encoder
 	- Changed the encoder separator from \* to \*+ to make encoders
