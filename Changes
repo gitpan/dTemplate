@@ -1,5 +1,15 @@
 Revision history for Perl extension dTemplate.
 
+2.0  Sun Mar  4 19:03:44 CET 2001
+	- Rewritten documentation
+	- Example added
+	- No more required HTML::Entities and URI::Escape when not needed
+	- $ENCODERS became %ENCODERS
+	- global parse parameter hash %dTemplate::parse added
+	- hash-structured parameter parsing added
+	- New dTemplate::Scalar object for possible memory-saving
+	- after compilation, we the original text is freed
+	- Possibility to suppress unassigned template variables
 1.0  Thu Oct 19 19:46:14 CEST 2000
 	- Added "lc" and "uc" encoder
 	- When I check for HASH reference, it is now done by UNIVERSAL::isa

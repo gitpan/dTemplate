@@ -4,3 +4,9 @@ Makefile.PL
 dTemplate.pm
 test.pl
 TODO
+example/dtemplate.pl
+example/templates/page.htm
+example/templates/table_row.htm
+example/templates/table_cell.htm
+example/text/eng/table_title.txt
+example/text/hun/table_title.txt

@@ -8,7 +8,7 @@ dTemplate - A powerful template handling logic with advanced features.
 
   $mail_template = define dTemplate "mail_tmpl.txt";# definition
 
-  $mail = $mail_template->parse(                    # The parsing
+  $mail = $mail_template->parse(                    # parsing
     TO      => "foo@bar.com",
     SUBJECT => $subject,
     BODY    => 
@@ -18,24 +18,43 @@ dTemplate - A powerful template handling logic with advanced features.
 
   print "Please send this mail: $mail";
 
+  where mail_tmpl.txt is:
+
+    From    : Me
+    To      : $TO$
+    Subject : $SUBJECT$
+
+    Message body:
+    $BODY$
+
+    $SIGNATURE$
+
   # Advanced feature: Styling
 
   $style={lang =>'hungarian',color=>'white'};     # Style definition
 
   $html_template = choose dTemplate( $style,      # Selector definition
-    'hungarian+white' => define dTemplate("hun_white_template.html"),
-    'spanish'         => define dTemplate("spanish.html"),
-    'black+hungarian' => define dTemplate("hun_black_template.html"),
-    'english'         => define dTemplate("english_template.html"),
+    'hungarian+white' => 
+            define dTemplate("hun_white_template.html"),
+    'spanish'         => 
+            define dTemplate("spanish.html"),
+    'black+hungarian' => 
+            define dTemplate("hun_black_template.html"),
+    'english'         => 
+            define dTemplate("english_template.html"),
     'empty'           => 
-      "<html>This is a simple text $BODY$ is NOT substituted!!!!"</html>",
-    ''                => text dTemplate "<html>$BODY$</html>",
+      "<html>This is a text, $BODY$ is NOT substituted!!!!"</html>",
+    ''                => 
+            text dTemplate "<html>$BODY$</html>",  # default
   );
 
   $body_template= choose dTemplate( $style,       # Selector definition
-    'hungarian'       => define dTemplate("sziasztok_emberek.html"),
-    'spanish'         => define dTemplate("adios_amigos.html"),
-    ''                => define dTemplate("bye_bye.html"),
+    'hungarian'       => 
+            define dTemplate("sziasztok_emberek.html"),
+    'spanish'         => 
+            define dTemplate("adios_amigos.html"),
+    ''                => 
+            define dTemplate("bye_bye.html"),
   );
 
   print $html_template->parse(BODY => $body_template->parse());
@@ -52,55 +71,325 @@ dTemplate - A powerful template handling logic with advanced features.
 
 =head1 DESCRIPTION
 
-This module wants to be the most powerful general purpose templating system. It has a very clear and easy to learn syntax with the styling capabilities.
+This module is aimed to be a simple, general-purpose, lightweight, 
+but very powerful templating system.
 
-All you need to use this: put $TEMPLATE_VARIABLE$ into your dTemplates, define them, and parse them. (You can write $ signs as $$).
+You can write template-parsing routines in the way the templates are
+structured logically. Starting from the biggest to the smallest.
+Your program code will be very clear, structured and easy to understand.
+This logic can be attained by using inline subroutines as values of template
+variables. (Look at the example at the end of the document)
 
-=head1 FEATURES
+=head1 USAGE
+
+First, you need to know how a template looks like, then you need to know how
+to define a template in a perl program, then you can parse it.
+
+After that you can see how to make new encoders.
+
+=head2 How a template looks like
+
+A template is a simple text file, which contains template variable placeholders.
+
+The full format of a placeholder is:
+
+  $Template_Variable%printf_style_format_string*encoder1*encoder2$
+
+Where:
+
+=over 4 
+
+=item Template_Variable
+
+It is a mandatory part of the placeholder. Can contain any (locale-aware) 
+alphanumeric characters and '.' .
+
+=item %printf_style_format_string
+
+This is an optional part. Used when you want to format the output. You can
+use as many '%' as you want, it can be good to pad the variable, for example
+when you parse a table. E.g:  $MONEY%%%%%%011d$ is a valid placeholder.
+
+=item *encoder
+
+There are predefined encoders in the module, which can be used to format 
+the input data.
+These are:
+
+  - u    : url-encoder
+  - h    : HTML-encoder (converts > to &gt;, etc)
+  - uc   : convert the string to uppercase
+  - lc   : convert the string to lowercase
+
+You can use zero or more of these:
+
+  $TITLE*uc*h$
+
+Read more on encoders (and how to make new encoders) in the Encoders part.
+
+=back
+
+=head2 Definition of a template
+
+There are 3 ways to define a template.
+
+=over 4
+
+=item $template = define dTemplate $filename
+
+This reads the template from a file.
+
+=item $template = text dTemplate $scalar
+
+This creates a template from a scalar
+
+=item $template = choose dTemplate $hash, "style1" => $template1, "style2" => ...
+
+It is the definition of the template chooser. It is the way how you can
+create styled templates.
+
+=back
+
+=head2 Parsing
+
+Parsing means substituting the variables which are defined in the template.
+It can be done by simply calling the "parse" method of a dTemplate object.
+
+The parameters of the "parse" method are the substitution definitions.
+
+You can provide substitution parameters in two form: 
+
+  - list of name => value pairs
+  - with a hash reference
+
+You can mix them if you want:
+
+  $template->parse(
+    name => $value,
+    { name2 => $value2, name3 => $value3 },
+    name4 => $value4,
+    { name5 => $value5 },
+    ...
+  )
+
+The "value" can be:
+
+=over 4
+
+=item scalar or scalar ref.
+
+If a value is scalar, it will be substituted. Scalar refs can be used to save
+some memory if you use them more than one time.
+
+=item code reference ( sub { }, or \&subroutine )
+
+The sub will be evaluated at each occurence of the template variable.
+
+=item hash
+
+You can assign a hash to a template variable if you want.
+In this way, you can use structured data in the
+templates, e.g you assign a { name => "Greg", "zip" => 111 } to the template
+variable "person", and if you use "person.name" in the template, you will
+get "Greg" back. Nesting (more "."-s) will also work.
+
+=back
+
+You can use %dTemplate::parse hash to assign global parse parameters.
+
+The return value of the parse method is a dTemplate::Scalar object, which can
+be used as a simple scalar, but really it is a scalar reference to save some
+memory. It is useful if you use large templates.
+
+=head2 Encoders
+
+The global hash, %dTemplate::ENCODERS contains the defined encoders.
+
+The hash keys are the names, the values are subroutine references. These subs
+get the encodable data as the first parameter and returns the encoded value.
+
+=head1 HINTS
 
 =over 4
 
 =item *
 
-General purpose templating. It can be used for texts or htmls, xmls, etc.
+In the first parse of every template, the templates will be compiled. 
+It is used to speed up parsing.
 
 =item *
 
-Straightforward logic. You can do all the templating in a logical order. Your program code will be very clear and easy to understand.
+Don't forget that %dTemplate::parse can be localized. This means you can 
+define local-only variable assignments in a subroutine:
+
+  local %dTemplate::parse=( 
+    %dTemplate::parse, 
+    local_name => $value 
+  );
 
 =item *
 
-Special formatting of the variables before variable-substitution: printf-style formatting and encoding.
+You don't need to use text as the input value of an encoder, you can
+use any scalar, even referenes! If you want (for example) print a date by a 
+date encoder, which
+expects the date to be an array ref of [ year, month, day ], then you can do
+this, e.g:
 
-The format of the variable is $Variable_NAME%printf_format*encoding$
+   $dTemplate::ENCODERS{date}=sub {
+     return "" if ref($_[0]) ne 'ARRAY';
+     return $_[0]->[0]."-".$_[0]->[1]."-".$_[0]->[2];
+   }
+
+Then, when you put $START_DATE*date$ to a template, you can parse this template:
+
+  $template->parse(
+    START_DATE => [2000,11,13],
+    ...
+  );
+
+=back
+
+=head1 ALL-IN-ONE EXAMPLE
+
+It is an example, which contains most of the features this module has. It is not
+intended to be a real-world example, but it can show the usage of this module.
+
+This example consists of one program, and some template modules.
+
+The executable version of this program can be found in the example
+directory of the module distribution.
+
+  use dTemplate;
+
+  ### definition of the standard templates
+
+  my @TEMPLATE_LIST=qw(page table_row table_cell);
+  my $templates={};
+  foreach my $template (@TEMPLATE_LIST) {
+    $templates->{$template} = 
+      define dTemplate("templates/$template.htm");
+  }
+
+  ### definition of the styled templates (styles = languages)
+
+  my @STYLES=qw(eng hun);
+  my @STYLED_TEMPLATE_LIST=qw(table_title);
+
+  my $style_select={ lang => 'hun' }; 
+
+  foreach my $template (@STYLED_TEMPLATE_LIST) {
+    my @array=();
+    foreach my $style (@STYLES) {
+      push @array, $style => 
+        define dTemplate("text/$style/$template.txt");
+    }
+    $templates->{$template} = 
+      choose dTemplate $style_select, @array;
+  }
+
+  ### setting up input data
+
+  my $table_to_print=[
+    [ "Buwam",   3, 6, 9 ],
+    [ "Greg",    8, 4, 2 ],
+    [ "You're",  8, 3, 4 ],
+    [ "HTML chars: <>", 3],
+  ];
+
+  ### setting up the global parse hash with parse parameters;
+
+  $dTemplate::parse{PAGENO}=7;
+
+  ### settings up a hash with personal data.
+
+  my $person_hash={
+    name => { first_name => "Greg" },
+    zip  => "9971",
+  };
+
+  ### this hash is simply added to other parse parameters
+
+  my $parse_hash={
+    "unknown.data" => 157,
+  };
+
+  ### the main page parse routine
+
+  print $templates->{page}->parse(
+    TABLE_TITLE =>             # name => value pair
+      $templates->{table_title}->parse(),
+    TABLE => sub {             # name => value pair. value is a sub
+      my $ret="";
+      foreach my $row (@$table_to_print) {
+        $ret .= $templates->{table_row}->parse(
+          BODY => sub {
+            my $ret="";
+            foreach my $cell (@$row) {
+              $ret .= $templates->{table_cell}->parse(
+                TEXT => $cell,
+              )
+            }
+            return $ret;
+          }
+        )
+      }
+      return $ret;
+    },
+    "person" => $person_hash,  # name => value pair. value is a href
+    $parse_hash,               # only a hash with parse parameters
+  );
+
+And the templates:
 
 =over 4
 
-=item Printf-Style formatting
+=item templates/page.htm:
 
-You can use a printf formatting string in the Template variable name after the % sign, e.g: $ZIP_CODE%8s$
+  <html>
+  <body>
 
-=item Encoding
+  <h1>$TABLE_TITLE*h$</h1>
 
-You can use URI ('u') or HTML ('h') encoding of the data: <HREF="link.cgi?target=$TARGET_URL*u$">
+  <table>
+  $TABLE$
+  </table>
 
-=item Using Both
+  <br>
+  Person name: $person.name*h$, zip code: $person.zip*h$
+  <br>
 
-If you want to use both printf-style formatting and Encoding, you must use in the order as declared above, e.g:   $PERCENT_COMPLETE%07.3f*h$. The reverse order won't work!
+  Unknown data: $unknown.data*h$
+  <br>
 
-=back 4
+  Page: $PAGENO%02d*h$
 
-=item *
+  </body>
+  </html>
 
-Formattable templates
+=item templates/table_row.htm:
 
-=back 4
+  <tr>$BODY$</tr>
+
+=item templates/table_cell.htm:
+
+  <td>$TEXT*h$</td>
+
+=item text/eng/table_title.txt:
+
+  Table 1
+
+=item text/hun/table_title.txt:
+
+  1. táblázat
+
+=back
 
 =head1 COPYRIGHT
 
-Copyrigh (c) 2000 Szabó, Balázs (dLux)
+Copyrigh (c) 2000-2001 Szabó, Balázs (dLux)
 
-All rights reserved. This program is free software; you can redistribute it and/or modify it under the same terms as Perl itself.
+All rights reserved. This program is free software; you can redistribute it 
+and/or modify it under the same terms as Perl itself.
 
 =head1 AUTHOR
 
@@ -116,7 +405,8 @@ package dTemplate;
 use strict;
 use vars qw($VERSION);
 
-$VERSION = '1.0';
+$VERSION = '2.0';
+$dTemplate::KEEP_NOT_ASSIGNED_TEXT=1; # for compatibility and debug
 
 # Constructors ...
 
@@ -131,26 +421,36 @@ sub encode {
 
 package dTemplate::Template;
 use strict;
-use vars qw($ENCODERS);
-use HTML::Entities;
-use URI::Escape;
+use vars qw(%ENCODERS $ENCODERS);
 use locale;
 
-$ENCODERS={
+%ENCODERS=(
   ''  => sub { shift() },
-  'u' => sub { URI::Escape::uri_escape($_[0]||"","^a-zA-Z0-9_.!~*'()"); },
-  'h' => sub { HTML::Entities::encode($_[0]||"","^\n\t !\#\$%-;=?-~") ; },
+  'u' => sub { 
+    require URI::Escape;     # autoload URI::Escape module
+    $ENCODERS{u}=sub {
+      URI::Escape::uri_escape($_[0]||"","^a-zA-Z0-9_.!~*'()"); 
+    };
+    $ENCODERS{u}->(shift);
+  },
+  'h' => sub { 
+    require HTML::Entities;  # autoload HTML::Entities module
+    $ENCODERS{h}=sub {
+      HTML::Entities::encode($_[0]||"","^\n\t !\#\$%-;=?-~") ; 
+    };
+    $ENCODERS{h}->(shift);
+  },
   'uc'=> sub { uc($_[0]) },
   'lc'=> sub { lc($_[0]) },
-};
+  'ha'=> sub { # Advanced html encoding: \n => <BR> , tabs => spaces
+    my $e=$ENCODERS->{'h'}->($_[0]);
+    $e =~ s/\n/<BR>/g;
+    $e =~ s/\t/&nbsp;&nbsp;&nbsp;/go;
+    $e;
+  }
+);
 
-# Advanced html encoding: \n => <BR> , tabs => spaces
-$ENCODERS->{'ha'}=sub {
-  my $e=$ENCODERS->{'h'}->($_[0]);
-  $e =~ s/\n/<BR>/g;
-  $e =~ s/\t/&nbsp;&nbsp;&nbsp;/go;
-  $e;
-};
+$ENCODERS=\%ENCODERS; # for compatibility of older versions
 
 sub filename { 0; };
 sub text     { 1; };
@@ -171,7 +471,8 @@ sub new_raw { my $class=shift;
 sub parse { my $s=shift;
   $s->compile;
   my $h= [{}];
-  while (my $var_name=shift) {
+  while (@_) {
+    my $var_name=shift;
     if (UNIVERSAL::isa($var_name,'HASH')) {
       push @$h,$var_name;
       next;
@@ -179,10 +480,22 @@ sub parse { my $s=shift;
     my $val=shift;
     $h->[0]->{$var_name}=defined $val ? $val : ""; # undef is not an option...
   };
+  push @$h, \%dTemplate::parse if %dTemplate::parse;
   my $lookfor= sub { my ($key)=@_;
     return "" if !defined $key;
-    for (my $i=0; $i<@$h; $i++) {
-      return $h->[$i]->{$key} if exists $h->[$i]->{$key};
+    my @keyparts=split(/\./,$key);
+    foreach my $hash (@$h) {
+      if (@keyparts>1 && exists $hash->{$keyparts[0]}) { 
+        # xxx.yyy ... form, and xxx is matched
+        my $result=$hash;
+        foreach my $keypart (@keyparts) {
+          $result=undef,last if !UNIVERSAL::isa($result,'HASH');
+          $result=$result->{$keypart};
+        }
+        return defined $result ? $result : "";
+      }
+      return defined $hash->{$key} ? $hash->{$key} : ""
+        if exists $hash->{$key};
     };
     return undef;
   };
@@ -196,25 +509,25 @@ sub parse { my $s=shift;
     my $val_got=$lookfor->($var->[2]);
     my $encoder;
     if (! ref($var->[4])) { # Only one encoder
-      $encoder=$ENCODERS->{ $var->[4] } || $ENCODERS->{''};
+      $encoder=$ENCODERS{ $var->[4] } || $ENCODERS{''};
     } else { # Multiple encoders!
       $encoder=sub { my $x=$_[0]; 
         foreach my $enc (@{$var->[4]}) {
-          $x=$ENCODERS->{ $enc }->($x);
+          $x=$ENCODERS{ $enc }->($x);
         };
         $x;
       };
     };
     my $value= 
-      ! defined $val_got                          ? $var->[1] :
+      ! defined $val_got                          ? 
+               $dTemplate::KEEP_NOT_ASSIGNED_TEXT ? $var->[1] : ""      :
       ref($val_got) eq 'CODE'                     ? $encoder->($val_got->()) :
-      ref($val_got) eq 'SCALAR'                   ? $encoder->($$val_got) :
+      UNIVERSAL::isa($val_got,'SCALAR')           ? $encoder->($$val_got) :
       do { my $r= $encoder->($val_got); ref($r) ? undef : $r };
-      # Special case: hash ref, array ref can be passed to the encoder!
     $ret.=$var->[0].($var->[3]?sprintf("%".$var->[3],$value):$value);
   };
-  return $ret;
-#  return dTemplate::Scalar->new(\$ret);
+  #return $ret;
+  return dTemplate::Scalar->new(\$ret);
 };
 
 sub style  { return undef };
@@ -225,7 +538,7 @@ sub compile { my $s=shift;
   my $last_pos=0;
   my $compiled=$s->[compiled]=[[]];
   ${ $s->[text] } =~ s{ (.*?) ( 
-      \$ ( [A-Za-z_0-9\.]* ) ( %+ (.*?[a-zA-Z]) )? ( \*(.*?) )? \$ | $ 
+      \$ ( [\w\.]* ) ( %+ (.*?[\w]) )? ( \*(.*?) )? \$ | $ 
     ) }{
     my ($pre,$full_matched,$varname,$full_format,$format,
       $full_encoding,$encoding)=($1,$2,$3,$4,$5,$6,$7);
@@ -244,6 +557,7 @@ sub compile { my $s=shift;
     };
     "";
   }gxsce;
+  $s->[text]=undef; # free up some memory
 };
 
 sub load_file { my $s=shift;
@@ -274,7 +588,8 @@ sub new { my $class=shift;
 };
 
 sub add { my $s=shift;
-  while (my $a=shift) {
+  while (@_) {
+    my $a=shift;
     my $b=shift;
     $s->define_style($s->[styles], ref($b) ? $b : \$b ,sort split(/\+/,$a));
   };
@@ -324,13 +639,16 @@ sub get_template { my ($s)=@_;
   return ref($retval) eq 'SCALAR' ? $$retval : $retval;
 };
 
-# package dTemplate::Scalar;
+package dTemplate::Scalar;
+use strict;
 
-# sub new { bless ($_[1],ref($_[0]) || $_[0]); };
+sub new { bless ($_[1],ref($_[0]) || $_[0]); };
 
-# sub stringify { $$_[0] };
-
-# use overload '""' => \&stringify;
+use overload(
+  '""'      => sub { ${ shift() } },
+  '=='      => sub { overload::StrVal(shift) eq overload::StrVal(shift) },
+   fallback => 1,
+);
 
 1;
 
