@@ -116,7 +116,7 @@ package dTemplate;
 use strict;
 use vars qw($VERSION);
 
-$VERSION = '0.8';
+$VERSION = '1.0';
 
 # Constructors ...
 
@@ -134,11 +134,14 @@ use strict;
 use vars qw($ENCODERS);
 use HTML::Entities;
 use URI::Escape;
+use locale;
 
 $ENCODERS={
   ''  => sub { shift() },
   'u' => sub { URI::Escape::uri_escape($_[0]||"","^a-zA-Z0-9_.!~*'()"); },
   'h' => sub { HTML::Entities::encode($_[0]||"","^\n\t !\#\$%-;=?-~") ; },
+  'uc'=> sub { uc($_[0]) },
+  'lc'=> sub { lc($_[0]) },
 };
 
 # Advanced html encoding: \n => <BR> , tabs => spaces
@@ -169,7 +172,7 @@ sub parse { my $s=shift;
   $s->compile;
   my $h= [{}];
   while (my $var_name=shift) {
-    if (ref($var_name) eq 'HASH') {
+    if (UNIVERSAL::isa($var_name,'HASH')) {
       push @$h,$var_name;
       next;
     };

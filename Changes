@@ -1,5 +1,10 @@
 Revision history for Perl extension dTemplate.
 
+1.0  Thu Oct 19 19:46:14 CEST 2000
+	- Added "lc" and "uc" encoder
+	- When I check for HASH reference, it is now done by UNIVERSAL::isa
+	- Lot of test has been done
+
 0.8  Sun Sep 24 23:17:24 CEST 2000
 	- constructor naming fixes: 
 	  "scalar dTemplate" -> "text dTemplate", 
