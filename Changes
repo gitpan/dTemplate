@@ -1,5 +1,9 @@
 Revision history for Perl extension dTemplate.
 
+2.1.2 Mon Jul  9 15:39:12 CEST 2001
+	- Fixed "u" and "h" encoders with "0" input
+	- Fixed hash reference detection in the .xs code
+
 2.1.1 Mon Jun 11 14:27:50 CEST 2001
 	- dTemplate.xs was missing from the 2.1.0 distribution, fixed here
 	- Documentation about using magical hashes.

@@ -122,7 +122,8 @@ parse(...)
         int varlen, p;
 
         varn = ST(i);
-        if (SvROK(varn)) { /* must be a hash or derived reference */
+        if (SvROK(varn) && (SvTYPE(SvRV(varn)) == SVt_PVHV)) {
+            /* hash reference or derived */
             HV *hash = (HV *) SvRV(varn);
             SV **val;
             char *walktable = variable_table + 1;

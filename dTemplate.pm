@@ -486,7 +486,7 @@ use vars qw($VERSION @ISA %ENCODERS %parse);
 
 @ISA = qw(DynaLoader);
 
-$VERSION = '2.1.1';
+$VERSION = '2.1.2';
 dTemplate->bootstrap($VERSION);
 
 # Constructors ...
@@ -517,7 +517,7 @@ sub spf {
 $ENCODERS{u}  = sub { 
     require URI::Escape;     # autoload URI::Escape module
     $ENCODERS{u} = sub {
-        URI::Escape::uri_escape($_[0]||"","^a-zA-Z0-9_.!~*'()"); 
+        URI::Escape::uri_escape(defined $_[0] ? $_[0] : "","^a-zA-Z0-9_.!~*'()"); 
     };
     $ENCODERS{u}->(shift);
 };
@@ -525,7 +525,7 @@ $ENCODERS{u}  = sub {
 $ENCODERS{h} = sub { 
     require HTML::Entities;  # autoload HTML::Entities module
     $ENCODERS{h}=sub {
-        HTML::Entities::encode($_[0]||"","^\n\t !\#\$%-;=?-~") ; 
+        HTML::Entities::encode(defined $_[0] ? $_[0] : "","^\n\t !\#\$%-;=?-~") ; 
     };
     $ENCODERS{h}->(shift);
 };
