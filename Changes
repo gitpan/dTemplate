@@ -1,9 +1,9 @@
 Revision history for Perl extension dTemplate.
 
-2.4.2 Wed Oct 25 23:43:26 CEST 2006
+2.5   Wed Oct 25 23:43:26 CEST 2006
 	- Make it work on 64-bit architectures
 
-2.4.1 Sat Jul 24 14:07:38 CEST 2004
+2.4.1 Sat Jul 24 14:07:38 CEST 2004 (not released to CPAN)
 	- Documentation and web-page tweaks
 
 2.4   Thu Aug 14 22:52:56 CEST 2003
