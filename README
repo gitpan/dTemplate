@@ -2,15 +2,18 @@ NAME
     dTemplate - A simple yet powerful template handling logic with advanced
     features.
 
-        $Id: dTemplate.pod 53 2003-08-14 21:14:48Z dlux $
+        $Id: dTemplate.pod 105 2004-07-24 12:08:22Z dlux $
 
-        $URL: http://svn.dlux.hu:81/public/dTemplate/trunk/dTemplate.pod $
+        $URL: http://svn.dlux.hu/public/dTemplate/trunk/dTemplate.pod $
 
 SYNOPSIS
         use dTemplate;
 
-        # definition from a file
-        $mail_template = dTemplate->new(file => "mail_tmpl.txt");
+        # definition 
+
+        $mail_template = dTemplate->new( file => "mail_tmpl.txt" );
+
+        $template = dTemplate->new( text => "<html>$BODY$</html>" ),
 
         # parsing
         $mail = $mail_template->parse(
@@ -191,7 +194,7 @@ USAGE
 
     From a scalar variable:
 
-        $template = dTemplate->new( text => $filename );
+        $template = dTemplate->new( text => "<html>$BODY$</html>" ),
 
     Using the template chooser:
 

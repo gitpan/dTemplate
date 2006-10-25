@@ -1,7 +1,7 @@
 #
-# $Id: dTemplate.pm 55 2003-08-14 21:16:11Z dlux $
+# $Id: dTemplate.pm 132 2006-10-21 15:52:44Z dlux $
 # 
-# $URL: http://svn.dlux.hu:81/public/dTemplate/trunk/dTemplate.pm $ 
+# $URL: http://svn.dlux.hu/public/dTemplate/trunk/dTemplate.pm $ 
 #
 
 package dTemplate;
@@ -13,7 +13,7 @@ use vars qw($VERSION @ISA %ENCODERS $ENCODERS %parse
 
 @ISA = qw(DynaLoader);
 
-$VERSION             = '2.4';
+$VERSION             = '2.4.2';
 $START_DELIMITER     = '\$';
 $END_DELIMITER       = '\$';
 $VAR_PATH_SEP        = '\.';
@@ -157,7 +157,7 @@ sub compile { my $s=shift;
             };
         };
         "";
-    }gxsce;
+    }gxse;
 
     # assigning ID-s for variables
 

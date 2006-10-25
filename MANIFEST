@@ -14,3 +14,4 @@ example/templates/table_row.htm
 example/templates/table_cell.htm
 example/text/eng/table_title.txt
 example/text/hun/table_title.txt
+META.yml                                 Module meta-data (added by MakeMaker)

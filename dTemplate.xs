@@ -2,9 +2,9 @@
  * dTemplate.xs
  * parse method
  *
- * $Id: dTemplate.xs 52 2003-07-31 22:01:00Z dlux $
+ * $Id: dTemplate.xs 132 2006-10-21 15:52:44Z dlux $
  * 
- * $URL: http://svn.dlux.hu:81/public/dTemplate/trunk/dTemplate.xs $
+ * $URL: http://svn.dlux.hu/public/dTemplate/trunk/dTemplate.xs $
  *
  */
 
@@ -115,7 +115,8 @@ parse(...)
     walk = compiled = SvPV(*compiledSV, compiled_len);
 
     /* get the number of variables in this template */
-    vars_left = number_of_variables = * ( (I32 *) walk )++;
+    vars_left = number_of_variables = * ( (I32*) walk );
+    walk += sizeof(I32)/sizeof(char);
 
     /* initializing the parser parameters */
     Newz(1, variable, number_of_variables, SV *);
@@ -131,7 +132,8 @@ parse(...)
     for (i=1; i<items; i++) {
         SV *varn;
         char *var, *pos, *prepared_var;
-        int varlen, p;
+	STRLEN varlen;
+        int p;
 
         varn = ST(i);
         if (SvROK(varn) && (SvTYPE(SvRV(varn)) == SVt_PVHV)) {
@@ -219,11 +221,13 @@ parse(...)
     /* parsing */
 
     while (1) {
-        I32 chunk_text_size = * ( (I32 *) walk )++;
+        I32 chunk_text_size = * ((I32 *) walk);
         I32 var_id, full_matched_len;
         SV *parsevar;
         char *full_matched, *variable_path;
         int assigned = 1;
+
+	walk+= sizeof(I32)/sizeof(char);
 
         append_StringChunk(result, walk, chunk_text_size);
 
@@ -235,7 +239,8 @@ parse(...)
         full_matched_len = strlen(full_matched);
         walk += full_matched_len + 1;
 
-        var_id = * ( (I32 *) walk )++;
+        var_id = * ( (I32 *) walk) ;
+	walk+=sizeof(I32)/sizeof(char);
 
         parsevar = variable[var_id];
 
@@ -353,7 +358,7 @@ parse(...)
             encoder_param = walk;
             encoder_param_len = strlen(encoder_param);
             walk += encoder_param_len + 1;
-            if (assigned && parsevar && (int) encoder && 
+            if (assigned && parsevar && (encoder != NULL) && 
                 (SvTYPE(SvRV(*encoder)) == SVt_PVCV)
             ) {
                 int retvals;
@@ -424,7 +429,7 @@ parse(...)
 
         if (parsevar) {
             char *var_string;
-            int var_length;
+            STRLEN var_length;
 
             var_string = SvPV(parsevar, var_length);
             append_StringChunk(result, var_string, var_length);
